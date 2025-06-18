@@ -10,18 +10,18 @@ import {LiquidityAmounts} from "v4-periphery/src/libraries/LiquidityAmounts.sol"
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {SafeCast} from "v4-core/src/libraries/SafeCast.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
-import {SwapParams, ModifyLiquidityParams} from "v4-core/src/types/PoolOperation.sol";
+import {ModifyLiquidityParams} from "v4-core/src/types/PoolOperation.sol";
 
 contract BaseCustomAccountingMock is BaseCustomAccounting, ERC20 {
     using SafeCast for uint256;
     using StateLibrary for IPoolManager;
 
-    uint256 public nativeRefund;
+    uint256 private _nativeRefund;
 
     constructor(IPoolManager _poolManager) BaseCustomAccounting(_poolManager) ERC20("Mock", "MOCK") {}
 
-    function setNativeRefund(uint256 nativeRefundFee) external {
-        nativeRefund = nativeRefundFee;
+    function setNativeRefund(uint256 nativeRefundFee_) external {
+        _nativeRefund = nativeRefundFee_;
     }
 
     function _getAddLiquidity(uint160 sqrtPriceX96, AddLiquidityParams memory params)
@@ -30,6 +30,7 @@ contract BaseCustomAccountingMock is BaseCustomAccounting, ERC20 {
         override
         returns (bytes memory modify, uint256 liquidity)
     {
+        uint256 nativeRefund = _nativeRefund;
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtPriceX96,
             TickMath.getSqrtPriceAtTick(params.tickLower),
@@ -72,7 +73,10 @@ contract BaseCustomAccountingMock is BaseCustomAccounting, ERC20 {
         );
     }
 
-    function _mint(AddLiquidityParams memory params, BalanceDelta, BalanceDelta, uint256 liquidity) internal override {
+    function _mint(AddLiquidityParams memory, /* params */ BalanceDelta, BalanceDelta, uint256 liquidity)
+        internal
+        override
+    {
         _mint(msg.sender, liquidity);
     }
 

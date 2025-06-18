@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Deployers} from "v4-core/test/utils/Deployers.sol";
-import {BaseCustomAccountingMock} from "test/mocks/BaseCustomAccountingMock.sol";
+import {BaseCustomAccountingMock} from "src/mocks/BaseCustomAccountingMock.sol";
+import {BaseCustomAccountingFeeMock} from "src/mocks/BaseCustomAccountingFeeMock.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/src/libraries/Hooks.sol";
 import {PoolSwapTest} from "v4-core/src/test/PoolSwapTest.sol";
@@ -16,7 +17,6 @@ import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {FullMath} from "v4-core/src/libraries/FullMath.sol";
 import {SafeCast} from "v4-core/src/libraries/SafeCast.sol";
-import {BaseCustomAccountingFeeMock} from "test/mocks/BaseCustomAccountingFeeMock.sol";
 import {SwapParams} from "v4-core/src/types/PoolOperation.sol";
 
 contract BaseCustomAccountingTest is Test, Deployers {

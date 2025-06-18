@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import "src/fee/BaseDynamicAfterFee.sol";
+import {BaseDynamicAfterFee} from "src/fee/BaseDynamicAfterFee.sol";
 import {SwapParams} from "v4-core/src/types/PoolOperation.sol";
+import {CurrencySettler} from "src/utils/CurrencySettler.sol";
+import {Currency} from "v4-core/src/types/Currency.sol";
+import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
+import {PoolKey} from "v4-core/src/types/PoolKey.sol";
+import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 
 contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
     using CurrencySettler for Currency;
-
-    uint256 public targetOutput;
-    bool public applyTargetOutput;
 
     constructor(IPoolManager _poolManager) BaseDynamicAfterFee(_poolManager) {}
 
@@ -16,9 +18,9 @@ contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
         return _targetOutput;
     }
 
-    function setTargetOutput(uint256 output, bool active) public {
-        targetOutput = output;
-        applyTargetOutput = active;
+    function setTargetOutput(uint256 output_, bool active_) public {
+        _targetOutput = output_;
+        _applyTargetOutput = active_;
     }
 
     function _afterSwapHandler(
@@ -41,7 +43,7 @@ contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
         override
         returns (uint256, bool)
     {
-        return (targetOutput, applyTargetOutput);
+        return (_targetOutput, _applyTargetOutput);
     }
 
     receive() external payable {}

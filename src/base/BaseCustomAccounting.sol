@@ -14,7 +14,7 @@ import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {PoolId} from "v4-core/src/types/PoolId.sol";
 import {IHookEvents} from "src/interfaces/IHookEvents.sol";
-import {SwapParams, ModifyLiquidityParams} from "v4-core/src/types/PoolOperation.sol";
+import {ModifyLiquidityParams} from "v4-core/src/types/PoolOperation.sol";
 
 /**
  * @dev Base implementation for custom accounting and hook-owned liquidity.
@@ -100,7 +100,7 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
     /**
      * @notice The hook's pool key.
      */
-    PoolKey public poolKey;
+    PoolKey private _poolKey;
 
     /**
      * @dev Ensure the deadline of a liquidity modification request is not expired.
@@ -137,6 +137,7 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         ensure(params.deadline)
         returns (BalanceDelta delta)
     {
+        PoolKey memory poolKey = getPoolKey();
         (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
 
         if (sqrtPriceX96 == 0) revert PoolNotInitialized();
@@ -189,7 +190,7 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         ensure(params.deadline)
         returns (BalanceDelta delta)
     {
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
+        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(getPoolKey().toId());
 
         if (sqrtPriceX96 == 0) revert PoolNotInitialized();
 
@@ -230,6 +231,8 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         );
     }
 
+
+
     /**
      * @dev Callback from the `PoolManager` when liquidity is modified, either adding or removing.
      *
@@ -244,14 +247,14 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         returns (bytes memory returnData)
     {
         CallbackData memory data = abi.decode(rawData, (CallbackData));
-        PoolKey memory key = poolKey;
+        PoolKey memory poolKey = getPoolKey();
 
         // Set the salt value of the liquidity position, which is the keccak256 hash of the sender and salt from the callback data
         // This ensures that each liquidity position is unique and cannot be accessed by other users
         data.params.salt = keccak256(abi.encode(data.sender, data.params.salt));
 
         // Get liquidity modification deltas
-        (BalanceDelta callerDelta, BalanceDelta feesAccrued) = poolManager.modifyLiquidity(key, data.params, "");
+        (BalanceDelta callerDelta, BalanceDelta feesAccrued) = poolManager.modifyLiquidity(poolKey, data.params, "");
 
         // Calculate the principal delta
         BalanceDelta principalDelta = callerDelta - feesAccrued;
@@ -259,25 +262,25 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         // Handle each currency amount based on its sign after applying the liquidity modification
         if (principalDelta.amount0() < 0) {
             // If amount0 is negative, send tokens from the sender to the pool
-            key.currency0.settle(poolManager, data.sender, uint256(int256(-principalDelta.amount0())), false);
+            poolKey.currency0.settle(poolManager, data.sender, uint256(int256(-principalDelta.amount0())), false);
         } else {
             // If amount0 is positive, send tokens from the pool to the sender
-            key.currency0.take(poolManager, data.sender, uint256(int256(principalDelta.amount0())), false);
+            poolKey.currency0.take(poolManager, data.sender, uint256(int256(principalDelta.amount0())), false);
         }
 
         if (principalDelta.amount1() < 0) {
             // If amount1 is negative, send tokens from the sender to the pool
-            key.currency1.settle(poolManager, data.sender, uint256(int256(-principalDelta.amount1())), false);
+            poolKey.currency1.settle(poolManager, data.sender, uint256(int256(-principalDelta.amount1())), false);
         } else {
             // If amount1 is positive, send tokens from the pool to the sender
-            key.currency1.take(poolManager, data.sender, uint256(int256(principalDelta.amount1())), false);
+            poolKey.currency1.take(poolManager, data.sender, uint256(int256(principalDelta.amount1())), false);
         }
 
         // Handle any accrued fees (by default, transfer all fees to the sender)
         _handleAccruedFees(data, callerDelta, feesAccrued);
 
         emit HookModifyLiquidity(
-            PoolId.unwrap(poolKey.toId()), data.sender, principalDelta.amount0(), principalDelta.amount1()
+            PoolId.unwrap(_poolKey.toId()), data.sender, principalDelta.amount0(), principalDelta.amount1()
         );
 
         // Return both deltas so that slippage checks can be done on the principal delta
@@ -297,6 +300,7 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         internal
         virtual
     {
+        PoolKey memory poolKey = getPoolKey();
         // Send any accrued fees to the sender
         poolKey.currency0.take(poolManager, data.sender, uint256(int256(feesAccrued.amount0())), false);
         poolKey.currency1.take(poolManager, data.sender, uint256(int256(feesAccrued.amount1())), false);
@@ -308,10 +312,10 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      */
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal override returns (bytes4) {
         // Check if the pool key is already initialized
-        if (address(poolKey.hooks) != address(0)) revert AlreadyInitialized();
+        if (address(getPoolKey().hooks) != address(0)) revert AlreadyInitialized();
 
         // Store the pool key to be used in other functions
-        poolKey = key;
+        _poolKey = key;
         return this.beforeInitialize.selector;
     }
 
@@ -406,6 +410,16 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         BalanceDelta feesAccrued,
         uint256 shares
     ) internal virtual;
+
+
+    /**
+     * @dev Get the pool key.
+     *
+     * @return poolKey The pool key.
+     */
+    function getPoolKey() public view returns (PoolKey memory) {
+        return _poolKey;
+    }
 
     /**
      * @dev Set the hook permissions, specifically `beforeInitialize`, `beforeAddLiquidity` and `beforeRemoveLiquidity`.

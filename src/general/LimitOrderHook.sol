@@ -135,7 +135,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
     OrderIdLibrary.OrderId private constant ORDER_ID_DEFAULT = OrderIdLibrary.OrderId.wrap(0);
 
     /// @dev The next order id to be used.
-    OrderIdLibrary.OrderId private orderIdNext = OrderIdLibrary.OrderId.wrap(1);
+    OrderIdLibrary.OrderId private _orderIdNext = OrderIdLibrary.OrderId.wrap(1);
 
     /// @dev The last tick lower for each pool.
     mapping(PoolId poolId => int24 tickLowerLast) private tickLowerLasts;

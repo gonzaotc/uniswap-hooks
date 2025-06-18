@@ -7,12 +7,13 @@ const rules = {
   'event-name-capwords': 'error',
   'max-states-count': 'error',
   'explicit-types': 'error',
+  'func-name-mixedcase': 'error', // note that this rule breaks foundry tests.
   'func-param-name-mixedcase': 'error',
   'imports-on-top': 'error',
   'modifier-name-mixedcase': 'error',
   'no-console': 'error', 
   'no-global-import': 'error',
-  'no-unused-vars': 'error',
+  'no-unused-vars': 'warn',
   'no-unused-import': 'error',
   'quotes': 'error',
   'use-forbidden-name': 'error',
@@ -20,8 +21,9 @@ const rules = {
   'visibility-modifier-order': 'error',
   'interface-starts-with-i': 'error',
   'duplicated-imports': 'error',
+  // 'ordering', convolutes the pr.
   'func-visibility': ['error', { "ignoreConstructors": true }],
-  // 'foundry-test-functions': 'error',
+  'state-visibility': 'error',
 }
 
 module.exports = {

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {Currency} from "v4-core/src/types/Currency.sol";
 import {BaseCustomCurve} from "src/base/BaseCustomCurve.sol";
@@ -33,7 +32,7 @@ contract BaseCustomCurveMock is BaseCustomCurve, ERC20 {
         );
     }
 
-    function _getSwapFeeAmount(SwapParams calldata params, uint256 unspecifiedAmount)
+    function _getSwapFeeAmount(SwapParams calldata, /* params */ uint256 /* unspecifiedAmount */ )
         internal
         virtual
         override
@@ -82,7 +81,10 @@ contract BaseCustomCurveMock is BaseCustomCurve, ERC20 {
         liquidity = params.liquidity;
     }
 
-    function _mint(AddLiquidityParams memory params, BalanceDelta, BalanceDelta, uint256 liquidity) internal override {
+    function _mint(AddLiquidityParams memory, /* params */ BalanceDelta, BalanceDelta, uint256 liquidity)
+        internal
+        override
+    {
         _mint(msg.sender, liquidity);
     }
 

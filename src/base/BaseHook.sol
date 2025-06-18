@@ -54,7 +54,7 @@ abstract contract BaseHook is IHooks {
      */
     constructor(IPoolManager _poolManager) {
         poolManager = _poolManager;
-        validateHookAddress(this);
+        _validateHookAddress(this);
     }
 
     /**
@@ -93,7 +93,7 @@ abstract contract BaseHook is IHooks {
     /**
      * @dev Validate the hook address against the expected permissions.
      */
-    function validateHookAddress(BaseHook hook) internal pure {
+    function _validateHookAddress(BaseHook hook) internal pure {
         Hooks.validateHookPermissions(hook, getHookPermissions());
     }
 
