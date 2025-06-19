@@ -18,6 +18,7 @@ import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {SwapParams} from "v4-core/src/types/PoolOperation.sol";
 import {CustomRevert} from "v4-core/src/libraries/CustomRevert.sol";
+import {V4Quoter} from "v4-periphery/src/lens/V4Quoter.sol";
 
 interface IV4Quoter {
     struct QuoteExactSingleParams {
@@ -36,7 +37,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
     using SafeCast for uint256;
 
     BaseDynamicAfterFeeMock dynamicFeesHook;
-    IV4Quoter quoter;
+    V4Quoter quoter;
 
     event Swap(
         PoolId indexed poolId,
@@ -60,7 +61,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
             )
         );
         deployCodeTo(
-            "test/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock",
+            "src/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock",
             abi.encode(manager),
             address(dynamicFeesHook)
         );
@@ -73,7 +74,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         vm.label(Currency.unwrap(currency0), "currency0");
         vm.label(Currency.unwrap(currency1), "currency1");
 
-        quoter = IV4Quoter(address(Deploy.v4Quoter(address(manager), "")));
+        quoter = V4Quoter(address(Deploy.v4Quoter(address(manager), "")));
     }
 
     function test_swap_100PercentLPFeeExactInput_succeeds() public {
@@ -102,7 +103,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         BaseDynamicAfterFeeMock nativeHook =
             BaseDynamicAfterFeeMock(payable(0x10000000000000000000000000000000000000C4));
         deployCodeTo(
-            "test/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock", abi.encode(manager), address(nativeHook)
         );
         (key,) = initPoolAndAddLiquidityETH(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -228,7 +229,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
 
         lpFee = uint24(bound(lpFee, 0, 1e6));
         amountSpecified = uint128(bound(amountSpecified, 1, 6017734268818166));
-        (uint256 amountUnspecified,) = quoter.quoteExactInputSingle(
+        (uint256 amountUnspecified,) = IV4Quoter(address(quoter)).quoteExactInputSingle(
             IV4Quoter.QuoteExactSingleParams({
                 poolKey: key,
                 zeroForOne: zeroForOne,

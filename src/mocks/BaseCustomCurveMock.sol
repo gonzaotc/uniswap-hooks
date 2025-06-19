@@ -7,6 +7,7 @@ import {BaseCustomCurve} from "src/base/BaseCustomCurve.sol";
 import {ERC20} from "openzeppelin/token/ERC20/ERC20.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {SwapParams} from "v4-core/src/types/PoolOperation.sol";
+import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 
 contract BaseCustomCurveMock is BaseCustomCurve, ERC20 {
     constructor(IPoolManager _manager) BaseCustomCurve(_manager) ERC20("Mock", "MOCK") {}
@@ -17,6 +18,7 @@ contract BaseCustomCurveMock is BaseCustomCurve, ERC20 {
         override
         returns (uint256 unspecifiedAmount)
     {
+        PoolKey memory poolKey = getPoolKey();
         bool exactInput = params.amountSpecified < 0;
         (Currency specified, Currency unspecified) = (params.zeroForOne == exactInput)
             ? (poolKey.currency0, poolKey.currency1)

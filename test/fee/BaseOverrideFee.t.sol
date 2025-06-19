@@ -42,7 +42,7 @@ contract BaseOverrideFeeTest is Test, Deployers {
 
         dynamicFeesHooks = BaseOverrideFeeMock(address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_INITIALIZE_FLAG)));
         deployCodeTo(
-            "test/mocks/BaseOverrideFeeMock.sol:BaseOverrideFeeMock", abi.encode(manager), address(dynamicFeesHooks)
+            "src/mocks/BaseOverrideFeeMock.sol:BaseOverrideFeeMock", abi.encode(manager), address(dynamicFeesHooks)
         );
 
         deployMintAndApprove2Currencies();

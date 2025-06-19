@@ -12,15 +12,18 @@ import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
     using CurrencySettler for Currency;
 
+    uint256 public targetOutput;
+    bool public applyTargetOutput;
+
     constructor(IPoolManager _poolManager) BaseDynamicAfterFee(_poolManager) {}
 
     function getTargetOutput() public view returns (uint256) {
         return _targetOutput;
     }
 
-    function setTargetOutput(uint256 output_, bool active_) public {
-        _targetOutput = output_;
-        _applyTargetOutput = active_;
+    function setTargetOutput(uint256 output, bool active) public {
+        targetOutput = output;
+        applyTargetOutput = active;
     }
 
     function _afterSwapHandler(
@@ -43,7 +46,7 @@ contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
         override
         returns (uint256, bool)
     {
-        return (_targetOutput, _applyTargetOutput);
+        return (targetOutput, applyTargetOutput);
     }
 
     receive() external payable {}

@@ -37,7 +37,7 @@ contract BaseAsyncSwapTest is Test, Deployers {
         deployFreshManagerAndRouters();
 
         hook = BaseAsyncSwapMock(address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG)));
-        deployCodeTo("test/mocks/BaseAsyncSwapMock.sol:BaseAsyncSwapMock", abi.encode(manager), address(hook));
+        deployCodeTo("src/mocks/BaseAsyncSwapMock.sol:BaseAsyncSwapMock", abi.encode(manager), address(hook));
 
         deployMintAndApprove2Currencies();
         (key,) = initPoolAndAddLiquidity(

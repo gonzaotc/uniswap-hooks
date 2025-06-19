@@ -30,11 +30,11 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         hook = AntiSandwichMock(
             address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG))
         );
-        deployCodeTo("test/mocks/AntiSandwichMock.sol:AntiSandwichMock", abi.encode(manager), address(hook));
+        deployCodeTo("src/mocks/AntiSandwichMock.sol:AntiSandwichMock", abi.encode(manager), address(hook));
 
         dynamicFeesHooks = BaseDynamicFeeMock(address(uint160(Hooks.AFTER_INITIALIZE_FLAG)));
         deployCodeTo(
-            "test/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock", abi.encode(manager), address(dynamicFeesHooks)
+            "src/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock", abi.encode(manager), address(dynamicFeesHooks)
         );
 
         (key,) = initPoolAndAddLiquidity(

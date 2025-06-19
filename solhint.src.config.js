@@ -21,9 +21,9 @@ const rules = {
   'visibility-modifier-order': 'error',
   'interface-starts-with-i': 'error',
   'duplicated-imports': 'error',
-  // 'ordering', convolutes the pr.
   'func-visibility': ['error', { "ignoreConstructors": true }],
   'state-visibility': 'error',
+  // 'ordering', convolutes the pr.
 }
 
 module.exports = {

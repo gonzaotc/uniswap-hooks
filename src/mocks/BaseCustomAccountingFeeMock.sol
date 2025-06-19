@@ -6,6 +6,7 @@ import {Currency} from "v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 import {CurrencySettler} from "src/utils/CurrencySettler.sol";
 import {BaseCustomAccountingMock} from "src/mocks/BaseCustomAccountingMock.sol";
+import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 
 contract BaseCustomAccountingFeeMock is BaseCustomAccountingMock {
     using CurrencySettler for Currency;
@@ -23,6 +24,7 @@ contract BaseCustomAccountingFeeMock is BaseCustomAccountingMock {
         internal
         override
     {
+        PoolKey memory poolKey = getPoolKey();
         uint256 feesAccruedFeeBps = _feesAccruedFeeBps;
         
         // Fetch fees from the pool

@@ -18,6 +18,7 @@ import {StateLibrary} from "v4-core/src/libraries/StateLibrary.sol";
 import {FullMath} from "v4-core/src/libraries/FullMath.sol";
 import {SafeCast} from "v4-core/src/libraries/SafeCast.sol";
 import {SwapParams} from "v4-core/src/types/PoolOperation.sol";
+import {PoolKey} from "v4-core/src/types/PoolKey.sol";
 
 contract BaseCustomAccountingTest is Test, Deployers {
     using SafeCast for uint256;
@@ -58,7 +59,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
             )
         );
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(hook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(hook)
         );
 
         deployMintAndApprove2Currencies();
@@ -72,13 +73,12 @@ contract BaseCustomAccountingTest is Test, Deployers {
     }
 
     function test_beforeInitialize_poolKey_succeeds() public view {
-        (Currency _currency0, Currency _currency1, uint24 _fee, int24 _tickSpacing, IHooks _hooks) = hook.poolKey();
-
-        assertEq(Currency.unwrap(_currency0), Currency.unwrap(currency0));
-        assertEq(Currency.unwrap(_currency1), Currency.unwrap(currency1));
-        assertEq(_fee, LPFeeLibrary.DYNAMIC_FEE_FLAG);
-        assertEq(_tickSpacing, 60);
-        assertEq(address(_hooks), address(hook));
+        PoolKey memory poolKey = hook.getPoolKey();
+        assertEq(Currency.unwrap(poolKey.currency0), Currency.unwrap(currency0));
+        assertEq(Currency.unwrap(poolKey.currency1), Currency.unwrap(currency1));
+        assertEq(poolKey.fee, LPFeeLibrary.DYNAMIC_FEE_FLAG);
+        assertEq(poolKey.tickSpacing, 60);
+        assertEq(address(poolKey.hooks), address(hook));
     }
 
     function test_initialize_already_reverts() public {
@@ -110,7 +110,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -148,7 +148,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -187,7 +187,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -236,7 +236,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -284,7 +284,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingFeeMock nativeHook =
             BaseCustomAccountingFeeMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingFeeMock.sol:BaseCustomAccountingFeeMock",
+            "src/mocks/BaseCustomAccountingFeeMock.sol:BaseCustomAccountingFeeMock",
             abi.encode(manager),
             address(nativeHook)
         );
@@ -474,7 +474,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -685,7 +685,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock nativeHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock", abi.encode(manager), address(nativeHook)
         );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
@@ -819,7 +819,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock uninitializedHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock",
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock",
             abi.encode(manager),
             address(uninitializedHook)
         );
@@ -834,7 +834,7 @@ contract BaseCustomAccountingTest is Test, Deployers {
         BaseCustomAccountingMock uninitializedHook =
             BaseCustomAccountingMock(payable(0x1000000000000000000000000000000000002A00));
         deployCodeTo(
-            "test/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock",
+            "src/mocks/BaseCustomAccountingMock.sol:BaseCustomAccountingMock",
             abi.encode(manager),
             address(uninitializedHook)
         );

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Uniswap Hooks (last updated v1.1.0) (src/general/LimitOrderHook.sol)
 
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 // Internal imports
 import {CurrencySettler} from "../utils/CurrencySettler.sol";
@@ -138,10 +138,10 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
     OrderIdLibrary.OrderId private _orderIdNext = OrderIdLibrary.OrderId.wrap(1);
 
     /// @dev The last tick lower for each pool.
-    mapping(PoolId poolId => int24 tickLowerLast) private tickLowerLasts;
+    mapping(PoolId poolId => int24 tickLowerLast) private _tickLowerLasts;
 
     /// @dev Tracks each order id for a given identifier, defined by keccak256 of the key, tick lower, and zero for one.
-    mapping(bytes32 orderIdKey => OrderIdLibrary.OrderId orderId) private orders;
+    mapping(bytes32 orderIdKey => OrderIdLibrary.OrderId orderId) private _orders;
 
     /// @dev Tracks the order info for each order id.
     mapping(OrderIdLibrary.OrderId orderId => OrderInfo orderInfo) public orderInfos;
@@ -207,7 +207,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
     /// @dev Hooks into the `afterInitialize` hook to set the last tick lower for the pool.
     function _afterInitialize(address, PoolKey calldata key, uint160, int24 tick) internal override returns (bytes4) {
         // set the last tick lower for the pool
-        tickLowerLasts[key.toId()] = getTickLower(tick, key.tickSpacing);
+        _tickLowerLasts[key.toId()] = _getTickLower(tick, key.tickSpacing);
 
         return this.afterInitialize.selector;
     }
@@ -224,7 +224,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
         if (lower > upper) return (this.afterSwap.selector, 0);
 
         // set the last tick lower for the pool
-        tickLowerLasts[key.toId()] = tickLower;
+        _tickLowerLasts[key.toId()] = tickLower;
 
         // note that a zeroForOne swap means that the pool is actually gaining token0, so limit
         // order fills are the opposite of swap fills, hence the inversion below
@@ -255,10 +255,10 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
         if (orderId.equals(ORDER_ID_DEFAULT)) {
             // initialize the order to the next order
             unchecked {
-                setOrderId(key, tick, zeroForOne, orderId = orderIdNext);
+                _setOrderId(key, tick, zeroForOne, orderId = _orderIdNext);
 
                 // increment the order id
-                orderIdNext = orderIdNext.unsafeIncrement();
+                _orderIdNext = _orderIdNext.unsafeIncrement();
             }
 
             // get the order info
@@ -344,7 +344,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
         orderInfo.liquidityTotal -= liquidity;
 
         if (removingAllLiquidity) {
-            setOrderId(key, tickLower, zeroForOne, ORDER_ID_DEFAULT);
+            _setOrderId(key, tickLower, zeroForOne, ORDER_ID_DEFAULT);
             orderInfo.currency0Total = 0;
             orderInfo.currency1Total = 0;
         }
@@ -633,7 +633,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
             orderInfo.filled = true;
 
             // set the order as default (inactive)
-            setOrderId(key, tickLower, zeroForOne, ORDER_ID_DEFAULT);
+            _setOrderId(key, tickLower, zeroForOne, ORDER_ID_DEFAULT);
 
             // modify the liquidity to remove the order liquidity from the pool
             (BalanceDelta delta,) = poolManager.modifyLiquidity(
@@ -685,7 +685,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
         view
         returns (int24 tickLower, int24 lower, int24 upper)
     {
-        tickLower = getTickLower(getTick(poolId), tickSpacing);
+        tickLower = _getTickLower(_getTick(poolId), tickSpacing);
         int24 tickLowerLast = getTickLowerLast(poolId);
 
         if (tickLower < tickLowerLast) {
@@ -702,7 +702,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * stored `tickLowerLast` value.
      */
     function getTickLowerLast(PoolId poolId) public view returns (int24) {
-        return tickLowerLasts[poolId];
+        return _tickLowerLasts[poolId];
     }
 
     /**
@@ -715,22 +715,22 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
         view
         returns (OrderIdLibrary.OrderId)
     {
-        return orders[keccak256(abi.encode(key, tickLower, zeroForOne))];
+        return _orders[keccak256(abi.encode(key, tickLower, zeroForOne))];
     }
 
     /**
      * @dev Internal helper that updates the order ID mapping. Takes a `PoolKey` `key`, target `tickLower`, direction
      * `zeroForOne`, and `orderId` to store. Associates the given order id with the pool position's hash.
      */
-    function setOrderId(PoolKey memory key, int24 tickLower, bool zeroForOne, OrderIdLibrary.OrderId orderId) private {
-        orders[keccak256(abi.encode(key, tickLower, zeroForOne))] = orderId;
+    function _setOrderId(PoolKey memory key, int24 tickLower, bool zeroForOne, OrderIdLibrary.OrderId orderId) private {
+        _orders[keccak256(abi.encode(key, tickLower, zeroForOne))] = orderId;
     }
 
     /**
      * @dev Get the tick lower. Takes a `tick` and `tickSpacing` and returns the nearest valid tick boundary
      * at or below the input tick, accounting for negative tick handling.
      */
-    function getTickLower(int24 tick, int24 tickSpacing) private pure returns (int24) {
+    function _getTickLower(int24 tick, int24 tickSpacing) private pure returns (int24) {
         // slither-disable-next-line divide-before-multiply
         int24 compressed = tick / tickSpacing;
         if (tick < 0 && tick % tickSpacing != 0) compressed--; // round towards negative infinity
@@ -749,14 +749,14 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * @dev Get the next order id.
      */
     function getOrderIdNext() external view returns (OrderIdLibrary.OrderId) {
-        return orderIdNext;
+        return _orderIdNext;
     }
 
     /**
      * @dev Get the current tick for a given pool. Takes a `PoolId` `poolId` and returns the tick calculated
      * from the pool's current sqrt price.
      */
-    function getTick(PoolId poolId) private view returns (int24 tick) {
+    function _getTick(PoolId poolId) private view returns (int24 tick) {
         (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
         tick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);
     }

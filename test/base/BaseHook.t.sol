@@ -42,10 +42,10 @@ contract BaseHookTest is Test, Deployers {
                 )
             )
         );
-        deployCodeTo("test/mocks/BaseHookMock.sol:BaseHookMock", abi.encode(manager), address(hook));
+        deployCodeTo("src/mocks/BaseHookMock.sol:BaseHookMock", abi.encode(manager), address(hook));
 
         hookReverts = BaseHookMockReverts(address(0x1000000000000000000000000000000000003FF0));
-        deployCodeTo("test/mocks/BaseHookMock.sol:BaseHookMockReverts", abi.encode(manager), address(hookReverts));
+        deployCodeTo("src/mocks/BaseHookMock.sol:BaseHookMockReverts", abi.encode(manager), address(hookReverts));
 
         deployMintAndApprove2Currencies();
 
