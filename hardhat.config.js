@@ -8,7 +8,7 @@ require('solidity-docgen');
  */
 module.exports = {
   solidity: {
-    version: "0.8.26",
+    version: "0.8.24",
   },
   docgen: require('./docs/config'),
 };

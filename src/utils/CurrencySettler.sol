@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Uniswap Hooks (last updated v0.1.0) (src/utils/CurrencySettler.sol)
 
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.24;
 
 import {Currency} from "v4-core/src/types/Currency.sol";
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";

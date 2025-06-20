@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Uniswap Hooks (last updated v1.1.0) (src/general/LimitOrderHook.sol)
 
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.24;
 
 // Internal imports
 import {CurrencySettler} from "../utils/CurrencySettler.sol";
