@@ -58,9 +58,13 @@ library CurrencySettler {
      * @param amount Amount to receive
      * @param claims If true, mint the ERC-6909 token, otherwise transfer ERC-20 from the `PoolManager` to recipient
      */
-    function take(Currency currency, IPoolManager poolManager, address recipient, uint256 amount, bool claims)
-        internal
-    {
+    function take(
+        Currency currency,
+        IPoolManager poolManager,
+        address recipient,
+        uint256 amount,
+        bool claims
+    ) internal {
         // Early return when amount is 0 given that some tokens may revert in this case
         if (amount == 0) return;
 

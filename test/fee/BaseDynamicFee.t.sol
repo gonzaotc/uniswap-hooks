@@ -42,12 +42,18 @@ contract BaseDynamicFeeTest is Test, Deployers {
 
         dynamicFeesHooks = BaseDynamicFeeMock(address(uint160(Hooks.AFTER_INITIALIZE_FLAG)));
         deployCodeTo(
-            "test/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock", abi.encode(manager), address(dynamicFeesHooks)
+            "test/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock",
+            abi.encode(manager),
+            address(dynamicFeesHooks)
         );
 
         deployMintAndApprove2Currencies();
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(dynamicFeesHooks)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(dynamicFeesHooks)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.label(Currency.unwrap(currency0), "currency0");
@@ -117,8 +123,10 @@ contract BaseDynamicFeeTest is Test, Deployers {
         dynamicFeesHooks.setFee(123);
         dynamicFeesHooks.poke(key);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 98, 79228162514264329749955861424, 1e18, -1, 123);
@@ -133,8 +141,10 @@ contract BaseDynamicFeeTest is Test, Deployers {
 
         dynamicFeesHooks.setFee(1000000);
         dynamicFeesHooks.poke(key);
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 0, SQRT_PRICE_1_1, 1e18, -1, 1000000);
@@ -149,8 +159,10 @@ contract BaseDynamicFeeTest is Test, Deployers {
 
         dynamicFeesHooks.setFee(500000);
         dynamicFeesHooks.poke(key);
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 49, 79228162514264333632135824623, 1e18, -1, 500000);
@@ -166,10 +178,15 @@ contract BaseDynamicFeeTest is Test, Deployers {
         dynamicFeesHooks.setFee(500000);
         dynamicFeesHooks.poke(key);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -202, 100, 79228162514264329670727698909, 1e18, -1, 500000);
@@ -185,10 +202,15 @@ contract BaseDynamicFeeTest is Test, Deployers {
         dynamicFeesHooks.setFee(1000000);
         dynamicFeesHooks.poke(key);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectRevert(Pool.InvalidFeeForExactOut.selector);
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
@@ -203,10 +225,15 @@ contract BaseDynamicFeeTest is Test, Deployers {
         vm.prank(feeController);
         manager.setProtocolFee(key, 1000);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectRevert(Pool.InvalidFeeForExactOut.selector);
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
@@ -220,10 +247,15 @@ contract BaseDynamicFeeTest is Test, Deployers {
         vm.prank(feeController);
         manager.setProtocolFee(key, 1000);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: -1000, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: -1000,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -1000, 0, SQRT_PRICE_1_1, 1e18, -1, 1000000);
@@ -243,8 +275,10 @@ contract BaseDynamicFeeTest is Test, Deployers {
         vm.prank(feeController);
         manager.setProtocolFee(key, 1000);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 98, 79228162514264329749955861424, 1e18, -1, 1123);
@@ -280,8 +314,10 @@ contract BaseDynamicFeeTest is Test, Deployers {
             amountSpecified: amountSpecified,
             sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
         });
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         BalanceDelta delta = swapRouter.swap(key, params, testSettings, ZERO_BYTES);
 
@@ -311,6 +347,6 @@ contract BaseDynamicFeeTest is Test, Deployers {
 
     function _fetchPoolLPFee(PoolKey memory _key) internal view returns (uint256 lpFee) {
         PoolId id = _key.toId();
-        (,,, lpFee) = manager.getSlot0(id);
+        (, , , lpFee) = manager.getSlot0(id);
     }
 }

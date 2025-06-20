@@ -53,12 +53,12 @@ abstract contract BaseDynamicAfterFee is BaseHook, IHookEvents {
      *
      * NOTE: The target output is reset to 0 in the `afterSwap` hook regardless of the apply flag.
      */
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        internal
-        virtual
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal virtual override returns (bytes4, BeforeSwapDelta, uint24) {
         // Get the target output and apply flag
         (uint256 targetOutput, bool applyTargetOutput) = _getTargetOutput(sender, key, params, hookData);
 
@@ -136,10 +136,12 @@ abstract contract BaseDynamicAfterFee is BaseHook, IHookEvents {
      * @return targetOutput The target output, defined in the unspecified currency of the swap.
      * @return applyTargetOutput The apply flag, which can be set to `false` to skip applying the target output.
      */
-    function _getTargetOutput(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        internal
-        virtual
-        returns (uint256 targetOutput, bool applyTargetOutput);
+    function _getTargetOutput(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal virtual returns (uint256 targetOutput, bool applyTargetOutput);
 
     /**
      * @dev Handler called after applying the target output to a swap and receiving the currency amount.
@@ -164,21 +166,22 @@ abstract contract BaseDynamicAfterFee is BaseHook, IHookEvents {
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: false,
-            beforeAddLiquidity: false,
-            afterAddLiquidity: false,
-            beforeRemoveLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: true,
-            afterSwap: true,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: true,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: false,
+                beforeAddLiquidity: false,
+                afterAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: true,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: true,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

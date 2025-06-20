@@ -36,7 +36,12 @@ interface IPoolManagerEvents {
     /// @param liquidityDelta The amount of liquidity that was added or removed
     /// @param salt The extra data to make positions unique
     event ModifyLiquidity(
-        PoolId indexed id, address indexed sender, int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt
+        PoolId indexed id,
+        address indexed sender,
+        int24 tickLower,
+        int24 tickUpper,
+        int256 liquidityDelta,
+        bytes32 salt
     );
 
     /// @notice Emitted for swaps between currency0 and currency1

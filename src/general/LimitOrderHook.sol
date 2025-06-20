@@ -213,12 +213,13 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
     }
 
     /// @dev Hooks into the `afterSwap` hook to get the ticks crossed by the swap and fill the orders that are crossed, filling them.
-    function _afterSwap(address, PoolKey calldata key, SwapParams calldata params, BalanceDelta, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4, int128)
-    {
+    function _afterSwap(
+        address,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        BalanceDelta,
+        bytes calldata
+    ) internal virtual override returns (bytes4, int128) {
         (int24 tickLower, int24 lower, int24 upper) = _getCrossedTicks(key.toId(), key.tickSpacing);
 
         if (lower > upper) return (this.afterSwap.selector, 0);
@@ -442,13 +443,9 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * and operation-specific data. Returns encoded data containing fees accrued for cancel operations, or empty bytes
      * otherwise. Only callable by the PoolManager.
      */
-    function unlockCallback(bytes calldata rawData)
-        external
-        virtual
-        override
-        onlyPoolManager
-        returns (bytes memory returnData)
-    {
+    function unlockCallback(
+        bytes calldata rawData
+    ) external virtual override onlyPoolManager returns (bytes memory returnData) {
         // decode the callback data
         CallbackData memory callbackData = abi.decode(rawData, (CallbackData));
 
@@ -480,10 +477,9 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * specified liquidity to the pool out of range. Reverts if the order would be placed in range or on the wrong
      * side of the range.
      */
-    function _handlePlaceCallback(CallbackDataPlace memory placeData)
-        internal
-        returns (uint256 amount0Fee, uint256 amount1Fee)
-    {
+    function _handlePlaceCallback(
+        CallbackDataPlace memory placeData
+    ) internal returns (uint256 amount0Fee, uint256 amount1Fee) {
         // get the pool key
         PoolKey memory key = placeData.key;
 
@@ -533,10 +529,9 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * removes liquidity from the pool. Returns accrued fees `(amount0Fee, amount1Fee)` which are allocated to remaining
      * limit order placers, or to the cancelling user if they're removing all liquidity.
      */
-    function _handleCancelCallback(CallbackDataCancel memory cancelData)
-        internal
-        returns (uint256 amount0Fee, uint256 amount1Fee)
-    {
+    function _handleCancelCallback(
+        CallbackDataCancel memory cancelData
+    ) internal returns (uint256 amount0Fee, uint256 amount1Fee) {
         // get the tick upper
         int24 tickUpper = cancelData.tickLower + cancelData.key.tickSpacing;
 
@@ -562,14 +557,18 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
             // if the amount of fees in currency0 is positive, mint currency0 to the hook
             if (feesAccrued.amount0() > 0) {
                 poolManager.mint(
-                    address(this), cancelData.key.currency0.toId(), amount0Fee = uint128(feesAccrued.amount0())
+                    address(this),
+                    cancelData.key.currency0.toId(),
+                    amount0Fee = uint128(feesAccrued.amount0())
                 );
             }
 
             // if the amount of fees in currency1 is positive, mint currency1 to the hook
             if (feesAccrued.amount1() > 0) {
                 poolManager.mint(
-                    address(this), cancelData.key.currency1.toId(), amount1Fee = uint128(feesAccrued.amount1())
+                    address(this),
+                    cancelData.key.currency1.toId(),
+                    amount1Fee = uint128(feesAccrued.amount1())
                 );
             }
 
@@ -584,12 +583,22 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
 
         // if the amount of currency0 is positive, take the currency0 from the pool and send it to the `to` address
         if (principalDelta.amount0() > 0) {
-            cancelData.key.currency0.take(poolManager, cancelData.to, uint256(uint128(principalDelta.amount0())), false);
+            cancelData.key.currency0.take(
+                poolManager,
+                cancelData.to,
+                uint256(uint128(principalDelta.amount0())),
+                false
+            );
         }
 
         // if the amount of currency1 is positive, take the currency1 from the pool and send it to the `to` address
         if (principalDelta.amount1() > 0) {
-            cancelData.key.currency1.take(poolManager, cancelData.to, uint256(uint128(principalDelta.amount1())), false);
+            cancelData.key.currency1.take(
+                poolManager,
+                cancelData.to,
+                uint256(uint128(principalDelta.amount1())),
+                false
+            );
         }
     }
 
@@ -636,7 +645,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
             setOrderId(key, tickLower, zeroForOne, ORDER_ID_DEFAULT);
 
             // modify the liquidity to remove the order liquidity from the pool
-            (BalanceDelta delta,) = poolManager.modifyLiquidity(
+            (BalanceDelta delta, ) = poolManager.modifyLiquidity(
                 key,
                 ModifyLiquidityParams({
                     tickLower: tickLower,
@@ -680,11 +689,10 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * and `tickSpacing`, returns the current `tickLower` and the range of ticks crossed (`lower`, `upper`) that need
      * to be checked for limit orders.
      */
-    function _getCrossedTicks(PoolId poolId, int24 tickSpacing)
-        internal
-        view
-        returns (int24 tickLower, int24 lower, int24 upper)
-    {
+    function _getCrossedTicks(
+        PoolId poolId,
+        int24 tickSpacing
+    ) internal view returns (int24 tickLower, int24 lower, int24 upper) {
         tickLower = getTickLower(getTick(poolId), tickSpacing);
         int24 tickLowerLast = getTickLowerLast(poolId);
 
@@ -710,11 +718,11 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * `zeroForOne` indicating whether it's buying currency0 or currency1. Returns the {OrderId} associated with this
      * position, or the default order id if no order exists.
      */
-    function getOrderId(PoolKey memory key, int24 tickLower, bool zeroForOne)
-        public
-        view
-        returns (OrderIdLibrary.OrderId)
-    {
+    function getOrderId(
+        PoolKey memory key,
+        int24 tickLower,
+        bool zeroForOne
+    ) public view returns (OrderIdLibrary.OrderId) {
         return orders[keccak256(abi.encode(key, tickLower, zeroForOne))];
     }
 
@@ -757,7 +765,7 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * from the pool's current sqrt price.
      */
     function getTick(PoolId poolId) private view returns (int24 tick) {
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolId);
+        (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(poolId);
         tick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);
     }
 
@@ -766,21 +774,22 @@ contract LimitOrderHook is BaseHook, IUnlockCallback {
      * `afterInitialize` and `afterSwap` hooks while disabling all other hooks.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: true,
-            beforeAddLiquidity: false,
-            beforeRemoveLiquidity: false,
-            afterAddLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: false,
-            afterSwap: true,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: true,
+                beforeAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterAddLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: false,
+                afterSwap: true,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

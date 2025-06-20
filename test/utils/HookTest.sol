@@ -28,11 +28,15 @@ contract HookTest is Test, Deployers, IPoolManagerEvents {
         bytes32 salt
     ) internal view returns (int128, int128) {
         bytes32 positionKey = Position.calculatePositionKey(owner, tickLower, tickUpper, salt);
-        (uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128) =
-            StateLibrary.getPositionInfo(manager, poolId, positionKey);
+        (uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128) = StateLibrary
+            .getPositionInfo(manager, poolId, positionKey);
 
-        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) =
-            StateLibrary.getFeeGrowthInside(manager, poolId, tickLower, tickUpper);
+        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = StateLibrary.getFeeGrowthInside(
+            manager,
+            poolId,
+            tickLower,
+            tickUpper
+        );
 
         uint256 fees0 = FullMath.mulDiv(feeGrowthInside0X128 - feeGrowthInside0LastX128, liquidity, FixedPoint128.Q128);
         uint256 fees1 = FullMath.mulDiv(feeGrowthInside1X128 - feeGrowthInside1LastX128, liquidity, FixedPoint128.Q128);
@@ -61,8 +65,12 @@ contract HookTest is Test, Deployers, IPoolManagerEvents {
         int256 liquidity,
         bytes32 salt
     ) internal returns (BalanceDelta) {
-        ModifyLiquidityParams memory modifyLiquidityParams =
-            ModifyLiquidityParams({tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: liquidity, salt: salt});
+        ModifyLiquidityParams memory modifyLiquidityParams = ModifyLiquidityParams({
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            liquidityDelta: liquidity,
+            salt: salt
+        });
         return modifyLiquidityRouter.modifyLiquidity(poolKey, modifyLiquidityParams, "");
     }
 

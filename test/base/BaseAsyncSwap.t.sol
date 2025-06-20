@@ -42,8 +42,12 @@ contract BaseAsyncSwapTest is Test, Deployers {
         deployCodeTo("test/mocks/BaseAsyncSwapMock.sol:BaseAsyncSwapMock", abi.encode(manager), address(hook));
 
         deployMintAndApprove2Currencies();
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.label(Currency.unwrap(currency0), "currency0");
@@ -51,10 +55,15 @@ contract BaseAsyncSwapTest is Test, Deployers {
     }
 
     function test_swap_exactInput_succeeds() public {
-        SwapParams memory swapParams =
-            SwapParams({zeroForOne: true, amountSpecified: -100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory swapParams = SwapParams({
+            zeroForOne: true,
+            amountSpecified: -100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         uint256 balance0Before = currency0.balanceOfSelf();
         uint256 balance1Before = currency1.balanceOfSelf();
@@ -72,10 +81,15 @@ contract BaseAsyncSwapTest is Test, Deployers {
     }
 
     function test_swap_exactOutput_succeeds() public {
-        SwapParams memory swapParams =
-            SwapParams({zeroForOne: true, amountSpecified: 100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory swapParams = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         uint256 balance0Before = currency0.balanceOfSelf();
         uint256 balance1Before = currency1.balanceOfSelf();
@@ -94,10 +108,15 @@ contract BaseAsyncSwapTest is Test, Deployers {
     }
 
     function test_swap_exactInput_notZeroForOne_succeeds() public {
-        SwapParams memory swapParams =
-            SwapParams({zeroForOne: false, amountSpecified: -100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory swapParams = SwapParams({
+            zeroForOne: false,
+            amountSpecified: -100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         uint256 balance0Before = currency0.balanceOfSelf();
         uint256 balance1Before = currency1.balanceOfSelf();
@@ -115,10 +134,15 @@ contract BaseAsyncSwapTest is Test, Deployers {
     }
 
     function test_swap_exactOutput_notZeroForOne_succeeds() public {
-        SwapParams memory swapParams =
-            SwapParams({zeroForOne: false, amountSpecified: 100, sqrtPriceLimitX96: MAX_PRICE_LIMIT});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory swapParams = SwapParams({
+            zeroForOne: false,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: MAX_PRICE_LIMIT
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         uint256 balance0Before = currency0.balanceOfSelf();
         uint256 balance1Before = currency1.balanceOfSelf();
@@ -143,8 +167,10 @@ contract BaseAsyncSwapTest is Test, Deployers {
             amountSpecified: amountSpecified,
             sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
         });
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         BalanceDelta delta = swapRouter.swap(key, params, testSettings, ZERO_BYTES);
 

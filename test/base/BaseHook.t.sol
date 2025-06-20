@@ -39,10 +39,16 @@ contract BaseHookTest is Test, Deployers {
         hook = BaseHookMock(
             address(
                 uint160(
-                    Hooks.BEFORE_INITIALIZE_FLAG | Hooks.AFTER_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
-                        | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG
-                        | Hooks.AFTER_REMOVE_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
-                        | Hooks.BEFORE_DONATE_FLAG | Hooks.AFTER_DONATE_FLAG
+                    Hooks.BEFORE_INITIALIZE_FLAG |
+                        Hooks.AFTER_INITIALIZE_FLAG |
+                        Hooks.BEFORE_ADD_LIQUIDITY_FLAG |
+                        Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG |
+                        Hooks.AFTER_ADD_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
+                        Hooks.BEFORE_SWAP_FLAG |
+                        Hooks.AFTER_SWAP_FLAG |
+                        Hooks.BEFORE_DONATE_FLAG |
+                        Hooks.AFTER_DONATE_FLAG
                 )
             )
         );
@@ -62,11 +68,11 @@ contract BaseHookTest is Test, Deployers {
         emit BaseHookMock.BeforeInitialize();
         vm.expectEmit(address(hook));
         emit BaseHookMock.AfterInitialize();
-        (key,) = initPool(currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
+        (key, ) = initPool(currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
     }
 
     function test_addLiquidity_succeeds() public {
-        (key,) = initPool(currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
+        (key, ) = initPool(currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
 
         vm.expectEmit(address(hook));
         emit BaseHookMock.BeforeAddLiquidity();
@@ -76,8 +82,12 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_removeLiquidity_succeeds() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.expectEmit(address(hook));
@@ -88,12 +98,18 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_swap_succeeds() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(address(hook));
         emit BaseHookMock.BeforeSwap();
@@ -104,8 +120,12 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_donate_succeeds() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.expectEmit(address(hook));
@@ -118,8 +138,13 @@ contract BaseHookTest is Test, Deployers {
 
     function test_initialize_reverts() public {
         vm.expectRevert();
-        (key,) =
-            initPool(currency0, currency1, IHooks(address(hookReverts)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
+        (key, ) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(hookReverts)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
+        );
 
         vm.prank(address(manager));
         vm.expectRevert(BaseHook.HookNotImplemented.selector);
@@ -181,8 +206,12 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_callback_succeeds() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.expectEmit(address(hook));
@@ -191,8 +220,12 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_callback_notSelf_reverts() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.expectRevert(BaseHook.NotSelf.selector);
@@ -200,8 +233,12 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_callback_error_reverts() public {
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.expectRevert(BaseHookMock.RevertCallback.selector);
@@ -255,8 +292,13 @@ contract BaseHookTest is Test, Deployers {
     }
 
     function test_onlyValidPools_succeeds() public {
-        PoolKey memory key =
-            PoolKey({currency0: currency0, currency1: currency1, fee: 0, tickSpacing: 0, hooks: IHooks(address(0x123))});
+        PoolKey memory key = PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: 0,
+            tickSpacing: 0,
+            hooks: IHooks(address(0x123))
+        });
 
         vm.prank(address(manager));
         vm.expectRevert(BaseHook.InvalidPool.selector);

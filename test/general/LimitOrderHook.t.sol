@@ -48,8 +48,8 @@ contract LimitOrderHookTest is HookTest {
 
         deployCodeTo("src/general/LimitOrderHook.sol:LimitOrderHook", abi.encode(manager), address(hook));
 
-        (key,) = initPool(currency0, currency1, IHooks(address(hook)), 3000, SQRT_PRICE_1_1);
-        (noHookKey,) = initPool(currency0, currency1, IHooks(address(0)), 3000, SQRT_PRICE_1_1);
+        (key, ) = initPool(currency0, currency1, IHooks(address(hook)), 3000, SQRT_PRICE_1_1);
+        (noHookKey, ) = initPool(currency0, currency1, IHooks(address(0)), 3000, SQRT_PRICE_1_1);
 
         tickSpacing = key.tickSpacing;
 
@@ -95,16 +95,26 @@ contract LimitOrderHookTest is HookTest {
         bytes32 salt
     ) internal view returns (int128, int128) {
         bytes32 positionKey = Position.calculatePositionKey(owner, tickLower, tickUpper, salt);
-        (uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128) =
-            StateLibrary.getPositionInfo(manager, poolId, positionKey);
+        (uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128) = StateLibrary
+            .getPositionInfo(manager, poolId, positionKey);
 
-        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) =
-            StateLibrary.getFeeGrowthInside(manager, poolId, tickLower, tickUpper);
+        (uint256 feeGrowthInside0X128, uint256 feeGrowthInside1X128) = StateLibrary.getFeeGrowthInside(
+            manager,
+            poolId,
+            tickLower,
+            tickUpper
+        );
 
-        uint256 feesExpected0 =
-            FullMath.mulDiv(feeGrowthInside0X128 - feeGrowthInside0LastX128, liquidity, FixedPoint128.Q128);
-        uint256 feesExpected1 =
-            FullMath.mulDiv(feeGrowthInside1X128 - feeGrowthInside1LastX128, liquidity, FixedPoint128.Q128);
+        uint256 feesExpected0 = FullMath.mulDiv(
+            feeGrowthInside0X128 - feeGrowthInside0LastX128,
+            liquidity,
+            FixedPoint128.Q128
+        );
+        uint256 feesExpected1 = FullMath.mulDiv(
+            feeGrowthInside1X128 - feeGrowthInside1LastX128,
+            liquidity,
+            FixedPoint128.Q128
+        );
 
         return (int128(int256(feesExpected0)), int128(int256(feesExpected1)));
     }
@@ -116,26 +126,37 @@ contract LimitOrderHookTest is HookTest {
         int256 liquidity,
         bytes32 salt
     ) internal returns (BalanceDelta) {
-        ModifyLiquidityParams memory modifyLiquidityParams =
-            ModifyLiquidityParams({tickLower: tickLower, tickUpper: tickUpper, liquidityDelta: liquidity, salt: salt});
+        ModifyLiquidityParams memory modifyLiquidityParams = ModifyLiquidityParams({
+            tickLower: tickLower,
+            tickUpper: tickUpper,
+            liquidityDelta: liquidity,
+            salt: salt
+        });
         return modifyLiquidityNoChecks.modifyLiquidity(poolKey, modifyLiquidityParams, "");
     }
 
-    function swapOnPool(PoolKey memory poolKey, bool zeroForOne, int256 amountSpecified, uint160 sqrtPriceLimitX96)
-        internal
-        returns (BalanceDelta)
-    {
-        return swapRouter.swap(
-            poolKey,
-            SwapParams({zeroForOne: zeroForOne, amountSpecified: amountSpecified, sqrtPriceLimitX96: sqrtPriceLimitX96}),
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
-            ZERO_BYTES
-        );
+    function swapOnPool(
+        PoolKey memory poolKey,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96
+    ) internal returns (BalanceDelta) {
+        return
+            swapRouter.swap(
+                poolKey,
+                SwapParams({
+                    zeroForOne: zeroForOne,
+                    amountSpecified: amountSpecified,
+                    sqrtPriceLimitX96: sqrtPriceLimitX96
+                }),
+                PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+                ZERO_BYTES
+            );
     }
 
     // Helpers
     function getCurrentTick(PoolId poolId) public view returns (int24 tick) {
-        (uint160 sqrtPriceX96,,,) = manager.getSlot0(poolId);
+        (uint160 sqrtPriceX96, , , ) = manager.getSlot0(poolId);
         tick = TickMath.getTickAtSqrtPrice(sqrtPriceX96);
     }
 
@@ -245,8 +266,9 @@ contract LimitOrderHookTest is HookTest {
 
         Currency orderCurrency0;
         Currency orderCurrency1;
-        (filled, orderCurrency0, orderCurrency1, currency0Total, currency1Total, liquidityTotal) =
-            hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, orderCurrency0, orderCurrency1, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(
+            OrderIdLibrary.OrderId.wrap(1)
+        );
         assertFalse(filled);
         assertTrue(currency0 == orderCurrency0);
         assertTrue(currency1 == orderCurrency1);
@@ -293,7 +315,7 @@ contract LimitOrderHookTest is HookTest {
         swapOnPool(noHookKey, false, -1e20, TickMath.getSqrtPriceAtTick(key.tickSpacing / 2));
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should not be filled");
         assertEq(currency0Total, 0, "currency0Total should be 0");
@@ -308,12 +330,18 @@ contract LimitOrderHookTest is HookTest {
 
         // cancel the order is the same as remove liquidity from the pool in the range (0, tickSpacing)
         vm.startPrank(user);
-        (int128 feesExpected0, int128 feesExpected1) =
-            calculateExpectedFees(manager, noHookKey.toId(), address(modifyLiquidityNoChecks), 0, key.tickSpacing, 0);
+        (int128 feesExpected0, int128 feesExpected1) = calculateExpectedFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityNoChecks),
+            0,
+            key.tickSpacing,
+            0
+        );
         BalanceDelta delta = modifyPoolLiquidityNoChecks(noHookKey, 0, key.tickSpacing, -int256(uint256(liquidity)), 0);
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertEq(currency0Total, uint256(uint128(feesExpected0)));
         assertEq(currency1Total, uint256(uint128(feesExpected1)));
@@ -357,7 +385,7 @@ contract LimitOrderHookTest is HookTest {
         int256 balanceUser1After = int256(currency1.balanceOf(user));
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
         assertEq(filled, false, "order should not be filled");
         assertEq(liquidityTotal, 0, "liquidityTotal should be liquidity");
         assertEq(currency0Total, 0, "currency0Total should be 0");
@@ -365,8 +393,14 @@ contract LimitOrderHookTest is HookTest {
 
         // cancel the order is the same as remove liquidity from the pool in the range (0, tickSpacing)
         vm.startPrank(user);
-        (int128 feesExpected0, int128 feesExpected1) =
-            calculateExpectedFees(manager, noHookKey.toId(), address(modifyLiquidityNoChecks), 0, key.tickSpacing, 0);
+        (int128 feesExpected0, int128 feesExpected1) = calculateExpectedFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityNoChecks),
+            0,
+            key.tickSpacing,
+            0
+        );
         BalanceDelta delta = modifyPoolLiquidityNoChecks(noHookKey, 0, key.tickSpacing, -int256(uint256(liquidity)), 0);
         vm.stopPrank();
 
@@ -402,7 +436,7 @@ contract LimitOrderHookTest is HookTest {
 
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should not be filled");
         assertEq(currency0Total, 0, "currency0Total should be 0");
@@ -418,11 +452,17 @@ contract LimitOrderHookTest is HookTest {
         // place the order is the same as add liquidity to the pool in the range (0, tickSpacing)
 
         vm.startPrank(user);
-        (int128 feesExpected0, int128 feesExpected1) =
-            calculateExpectedFees(manager, noHookKey.toId(), address(modifyLiquidityNoChecks), 0, key.tickSpacing, 0);
+        (int128 feesExpected0, int128 feesExpected1) = calculateExpectedFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityNoChecks),
+            0,
+            key.tickSpacing,
+            0
+        );
         BalanceDelta delta = modifyPoolLiquidityNoChecks(noHookKey, 0, key.tickSpacing, int256(uint256(liquidity)), 0);
         vm.stopPrank();
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should not be filled");
         assertEq(liquidityTotal, 3 * liquidity, "liquidityTotal should be 3*liquidity");
@@ -475,7 +515,7 @@ contract LimitOrderHookTest is HookTest {
             ZERO_BYTES
         );
 
-        (filled,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertTrue(filled, "order should be filled");
         assertEq(currency0Total, 0, "wrong amount of currency0");
@@ -485,7 +525,7 @@ contract LimitOrderHookTest is HookTest {
         hook.withdraw(OrderIdLibrary.OrderId.wrap(1), user);
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertTrue(filled, "order should be filled");
         assertEq(currency0Total, 0, "wrong amount of currency0");
@@ -493,7 +533,7 @@ contract LimitOrderHookTest is HookTest {
 
         hook.withdraw(OrderIdLibrary.OrderId.wrap(1), address(this));
 
-        (filled,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertTrue(filled, "order should be filled");
         assertEq(currency0Total, 0, "wrong amount of currency0");
@@ -524,14 +564,20 @@ contract LimitOrderHookTest is HookTest {
         hook.cancelOrder(key, 0, zeroForOne, address(this));
 
         vm.startPrank(user);
-        (int128 initialFeesExpected0, int128 initialFeesExpected1) =
-            calculateExpectedFees(manager, noHookKey.toId(), address(modifyLiquidityNoChecks), 0, key.tickSpacing, 0);
+        (int128 initialFeesExpected0, int128 initialFeesExpected1) = calculateExpectedFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityNoChecks),
+            0,
+            key.tickSpacing,
+            0
+        );
         BalanceDelta delta = modifyPoolLiquidityNoChecks(noHookKey, 0, key.tickSpacing, -int256(uint256(liquidity)), 0);
         vm.stopPrank();
 
         assertTrue(initialFeesExpected0 > 0 || initialFeesExpected1 > 0, "fees should be accrued");
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should not be filled");
         assertEq(liquidityTotal, liquidity, "liquidityTotal should be liquidity");
@@ -553,7 +599,7 @@ contract LimitOrderHookTest is HookTest {
         int256 balanceUser1After = int256(currency1.balanceOf(user));
         vm.stopPrank();
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertTrue(filled, "order should be filled");
         assertEq(currency0Total, 0, "currency0Total should be 0");
@@ -601,8 +647,14 @@ contract LimitOrderHookTest is HookTest {
 
         // add liquidity to be equivalent as placing the order
         vm.startPrank(user);
-        (int128 initialFeesExpected0, int128 initialFeesExpected1) =
-            calculateExpectedFees(manager, noHookKey.toId(), address(modifyLiquidityNoChecks), 0, tickSpacing, 0);
+        (int128 initialFeesExpected0, int128 initialFeesExpected1) = calculateExpectedFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityNoChecks),
+            0,
+            tickSpacing,
+            0
+        );
         modifyPoolLiquidityNoChecks(noHookKey, 0, tickSpacing, int256(uint256(1e15)), 0);
         vm.stopPrank();
 
@@ -612,15 +664,21 @@ contract LimitOrderHookTest is HookTest {
 
         assertTrue(initialFeesExpected0 > 0 || initialFeesExpected1 > 0, "fees should be accrued");
 
-        (filled,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should not be filled");
         assertEq(liquidityTotal, 1e15 * 2, "liquidityTotal should be 2 * liquidity");
         assertApproxEqAbs(
-            currency0Total, uint256(uint128(initialFeesExpected0)), 1, "currency0Total should be the fees accrued"
+            currency0Total,
+            uint256(uint128(initialFeesExpected0)),
+            1,
+            "currency0Total should be the fees accrued"
         );
         assertApproxEqAbs(
-            currency1Total, uint256(uint128(initialFeesExpected1)), 1, "currency1Total should be the fees accrued"
+            currency1Total,
+            uint256(uint128(initialFeesExpected1)),
+            1,
+            "currency1Total should be the fees accrued"
         );
 
         // this swap should fill the order, cross the range (0, tickSpacing)
@@ -633,7 +691,7 @@ contract LimitOrderHookTest is HookTest {
         delta = modifyPoolLiquidityNoChecks(noHookKey, 0, tickSpacing, -int256(uint256(2 * 1e15)), 0);
         vm.stopPrank();
 
-        (,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         // currency on the hook should be delta
         assertEq(
@@ -659,7 +717,9 @@ contract LimitOrderHookTest is HookTest {
         uint256 currency0Total2;
         uint256 currency1Total2;
 
-        (filled,,, currency0Total2, currency1Total2, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total2, currency1Total2, liquidityTotal) = hook.orderInfos(
+            OrderIdLibrary.OrderId.wrap(1)
+        );
 
         assertTrue(filled, "order should be filled");
         assertEq(liquidityTotal, 1e15, "liquidityTotal should be liquidity");
@@ -681,7 +741,7 @@ contract LimitOrderHookTest is HookTest {
         int256 balanceUser1AfterWithdraw = int256(currency1.balanceOf(user));
         vm.stopPrank();
 
-        (,,, currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (, , , currency0Total, currency1Total, liquidityTotal) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertEq(liquidityTotal, 0, "liquidityTotal should be 0");
         assertEq(currency0Total, 0, "currency0Total should be 0");
@@ -740,7 +800,7 @@ contract LimitOrderHookTest is HookTest {
         currentTick = getCurrentTick(key.toId());
         assertEq(currentTick, tickLower + key.tickSpacing / 2, "Tick after swap 2 is wrong");
 
-        (filled,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         swapRouter.swap(
             key,
@@ -753,7 +813,7 @@ contract LimitOrderHookTest is HookTest {
             ZERO_BYTES
         );
 
-        (filled,,, currency0Total, currency1Total,) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
+        (filled, , , currency0Total, currency1Total, ) = hook.orderInfos(OrderIdLibrary.OrderId.wrap(1));
 
         assertFalse(filled, "order should be filled");
         assertEq(currency0Total, 0, "wrong amount of currency0");

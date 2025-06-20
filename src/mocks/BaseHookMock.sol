@@ -34,22 +34,22 @@ contract BaseHookMock is BaseHook {
         return this.afterInitialize.selector;
     }
 
-    function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         emit BeforeAddLiquidity();
         return this.beforeAddLiquidity.selector;
     }
 
-    function _beforeRemoveLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         emit BeforeRemoveLiquidity();
         return this.beforeRemoveLiquidity.selector;
     }
@@ -78,43 +78,45 @@ contract BaseHookMock is BaseHook {
         return (this.afterRemoveLiquidity.selector, BalanceDeltaLibrary.ZERO_DELTA);
     }
 
-    function _beforeSwap(address, PoolKey calldata key, SwapParams calldata, bytes calldata)
-        internal
-        virtual
-        override
-        onlyValidPools(key.hooks)
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address,
+        PoolKey calldata key,
+        SwapParams calldata,
+        bytes calldata
+    ) internal virtual override onlyValidPools(key.hooks) returns (bytes4, BeforeSwapDelta, uint24) {
         emit BeforeSwap();
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
-    function _afterSwap(address, PoolKey calldata, SwapParams calldata, BalanceDelta, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4, int128)
-    {
+    function _afterSwap(
+        address,
+        PoolKey calldata,
+        SwapParams calldata,
+        BalanceDelta,
+        bytes calldata
+    ) internal virtual override returns (bytes4, int128) {
         emit AfterSwap();
         return (this.afterSwap.selector, 0);
     }
 
-    function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _beforeDonate(
+        address,
+        PoolKey calldata,
+        uint256,
+        uint256,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         emit BeforeDonate();
         return this.beforeDonate.selector;
     }
 
-    function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _afterDonate(
+        address,
+        PoolKey calldata,
+        uint256,
+        uint256,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         emit AfterDonate();
         return this.afterDonate.selector;
     }
@@ -123,22 +125,23 @@ contract BaseHookMock is BaseHook {
      * @dev Set all permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory) {
-        return Hooks.Permissions({
-            beforeInitialize: true,
-            afterInitialize: true,
-            beforeAddLiquidity: true,
-            beforeRemoveLiquidity: true,
-            afterAddLiquidity: true,
-            afterRemoveLiquidity: true,
-            beforeSwap: true,
-            afterSwap: true,
-            beforeDonate: true,
-            afterDonate: true,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: true,
+                afterInitialize: true,
+                beforeAddLiquidity: true,
+                beforeRemoveLiquidity: true,
+                afterAddLiquidity: true,
+                afterRemoveLiquidity: true,
+                beforeSwap: true,
+                afterSwap: true,
+                beforeDonate: true,
+                afterDonate: true,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 
     function callback(bytes memory call) external {
@@ -172,22 +175,23 @@ contract BaseHookMockReverts is BaseHook {
      * @dev Set all permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory) {
-        return Hooks.Permissions({
-            beforeInitialize: true,
-            afterInitialize: true,
-            beforeAddLiquidity: true,
-            beforeRemoveLiquidity: true,
-            afterAddLiquidity: true,
-            afterRemoveLiquidity: true,
-            beforeSwap: true,
-            afterSwap: true,
-            beforeDonate: true,
-            afterDonate: true,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: true,
+                afterInitialize: true,
+                beforeAddLiquidity: true,
+                beforeRemoveLiquidity: true,
+                afterAddLiquidity: true,
+                afterRemoveLiquidity: true,
+                beforeSwap: true,
+                afterSwap: true,
+                beforeDonate: true,
+                afterDonate: true,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 
     // Exclude from coverage report

@@ -29,9 +29,9 @@ interface IV4Quoter {
         bytes hookData;
     }
 
-    function quoteExactInputSingle(QuoteExactSingleParams memory params)
-        external
-        returns (uint256 amountOut, uint256 gasEstimate);
+    function quoteExactInputSingle(
+        QuoteExactSingleParams memory params
+    ) external returns (uint256 amountOut, uint256 gasEstimate);
 }
 
 contract BaseDynamicAfterFeeTest is Test, Deployers {
@@ -68,8 +68,12 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         );
 
         deployMintAndApprove2Currencies();
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(dynamicFeesHook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(dynamicFeesHook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.label(Currency.unwrap(currency0), "currency0");
@@ -85,8 +89,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = dynamicFeesHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 99, 79228162514264329670727698910, 1e18, -1, 0);
@@ -101,12 +107,15 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
     }
 
     function test_swap_100PercentLPFeeExactInputNative_succeeds() public {
-        BaseDynamicAfterFeeMock nativeHook =
-            BaseDynamicAfterFeeMock(payable(0x10000000000000000000000000000000000000C4));
-        deployCodeTo(
-            "test/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock", abi.encode(manager), address(nativeHook)
+        BaseDynamicAfterFeeMock nativeHook = BaseDynamicAfterFeeMock(
+            payable(0x10000000000000000000000000000000000000C4)
         );
-        (key,) = initPoolAndAddLiquidityETH(
+        deployCodeTo(
+            "test/mocks/BaseDynamicAfterFeeMock.sol:BaseDynamicAfterFeeMock",
+            abi.encode(manager),
+            address(nativeHook)
+        );
+        (key, ) = initPoolAndAddLiquidityETH(
             CurrencyLibrary.ADDRESS_ZERO,
             currency1,
             IHooks(address(nativeHook)),
@@ -126,8 +135,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = nativeHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 99, 79228162514264329670727698910, 1e18, -1, 0);
@@ -148,8 +159,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = dynamicFeesHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 99, 79228162514264329670727698910, 1e18, -1, 0);
@@ -170,8 +183,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = dynamicFeesHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -100, 99, 79228162514264329670727698910, 1e18, -1, 0);
@@ -187,10 +202,15 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = dynamicFeesHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 100, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(key.toId(), address(swapRouter), -101, 100, 79228162514264329670727698909, 1e18, -1, 0);
@@ -208,8 +228,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
         uint256 currentOutput = dynamicFeesHook.getTargetOutput();
         assertEq(currentOutput, 0);
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -230,7 +252,7 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
 
         lpFee = uint24(bound(lpFee, 0, 1e6));
         amountSpecified = uint128(bound(amountSpecified, 1, 6017734268818166));
-        (uint256 amountUnspecified,) = quoter.quoteExactInputSingle(
+        (uint256 amountUnspecified, ) = quoter.quoteExactInputSingle(
             IV4Quoter.QuoteExactSingleParams({
                 poolKey: key,
                 zeroForOne: zeroForOne,
@@ -247,8 +269,10 @@ contract BaseDynamicAfterFeeTest is Test, Deployers {
             amountSpecified: -int128(amountSpecified),
             sqrtPriceLimitX96: zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT
         });
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         BalanceDelta delta = swapRouter.swap(key, params, testSettings, ZERO_BYTES);
 

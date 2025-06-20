@@ -36,12 +36,12 @@ abstract contract BaseOverrideFee is BaseHook {
     /**
      * @dev Check that the pool key has a dynamic fee.
      */
-    function _afterInitialize(address, PoolKey calldata key, uint160, int24)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _afterInitialize(
+        address,
+        PoolKey calldata key,
+        uint160,
+        int24
+    ) internal virtual override returns (bytes4) {
         if (!key.fee.isDynamicFee()) revert NotDynamicFee();
         return this.afterInitialize.selector;
     }
@@ -49,20 +49,22 @@ abstract contract BaseOverrideFee is BaseHook {
     /**
      * @dev Returns a fee, denominated in hundredths of a bip, to be applied to a swap.
      */
-    function _getFee(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        internal
-        virtual
-        returns (uint24);
+    function _getFee(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal virtual returns (uint24);
 
     /**
      * @dev Set the fee before the swap is processed using the override fee flag.
      */
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        internal
-        virtual
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal virtual override returns (bytes4, BeforeSwapDelta, uint24) {
         uint24 fee = _getFee(sender, key, params, hookData);
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, fee | LPFeeLibrary.OVERRIDE_FEE_FLAG);
     }
@@ -73,21 +75,22 @@ abstract contract BaseOverrideFee is BaseHook {
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: true,
-            beforeAddLiquidity: false,
-            afterAddLiquidity: false,
-            beforeRemoveLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: true,
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: true,
+                beforeAddLiquidity: false,
+                afterAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: false,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

@@ -52,12 +52,12 @@ abstract contract BaseAsyncSwap is BaseHook, IHookEvents {
      * @dev Skip the v3-like swap implementation of the `PoolManager` by returning a delta that nets out the
      * specified amount to 0 to enable asynchronous swaps.
      */
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata
+    ) internal virtual override returns (bytes4, BeforeSwapDelta, uint24) {
         // Async swaps are only possible on exact-input swaps, so exact-output swaps are executed by the `PoolManager` as normal
         if (params.amountSpecified < 0) {
             // Determine which currency is specified
@@ -75,11 +75,21 @@ abstract contract BaseAsyncSwap is BaseHook, IHookEvents {
             // Emit the swap event with the specified amount signifying the amount taken by the hook
             if (specified == key.currency0) {
                 emit HookSwap(
-                    PoolId.unwrap(key.toId()), sender, specifiedAmount.toInt128(), 0, feeAmount.toUint128(), 0
+                    PoolId.unwrap(key.toId()),
+                    sender,
+                    specifiedAmount.toInt128(),
+                    0,
+                    feeAmount.toUint128(),
+                    0
                 );
             } else {
                 emit HookSwap(
-                    PoolId.unwrap(key.toId()), sender, 0, specifiedAmount.toInt128(), 0, feeAmount.toUint128()
+                    PoolId.unwrap(key.toId()),
+                    sender,
+                    0,
+                    specifiedAmount.toInt128(),
+                    0,
+                    feeAmount.toUint128()
                 );
             }
 
@@ -98,11 +108,10 @@ abstract contract BaseAsyncSwap is BaseHook, IHookEvents {
      *
      * @return feeAmount The fee amount for the swap.
      */
-    function _calculateSwapFee(PoolKey calldata key, uint256 specifiedAmount)
-        internal
-        virtual
-        returns (uint256 feeAmount)
-    {
+    function _calculateSwapFee(
+        PoolKey calldata key,
+        uint256 specifiedAmount
+    ) internal virtual returns (uint256 feeAmount) {
         return 0;
     }
 
@@ -112,21 +121,22 @@ abstract contract BaseAsyncSwap is BaseHook, IHookEvents {
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: false,
-            beforeAddLiquidity: false,
-            beforeRemoveLiquidity: false,
-            afterAddLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: true,
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: true,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: false,
+                beforeAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterAddLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: false,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: true,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

@@ -22,16 +22,17 @@ contract BaseCustomAccountingFeeMock is BaseCustomAccountingMock {
         feesAccruedFeeBps = feeBps;
     }
 
-    function _handleAccruedFees(CallbackData memory data, BalanceDelta callerDelta, BalanceDelta feesAccrued)
-        internal
-        override
-    {
+    function _handleAccruedFees(
+        CallbackData memory data,
+        BalanceDelta callerDelta,
+        BalanceDelta feesAccrued
+    ) internal override {
         // Fetch fees from the pool
         poolKey.currency0.take(poolManager, address(this), uint256(int256(feesAccrued.amount0())), false);
         poolKey.currency1.take(poolManager, address(this), uint256(int256(feesAccrued.amount1())), false);
 
-        uint256 fee0 = uint256(int256(feesAccrued.amount0())) * feesAccruedFeeBps / 10_000;
-        uint256 fee1 = uint256(int256(feesAccrued.amount1())) * feesAccruedFeeBps / 10_000;
+        uint256 fee0 = (uint256(int256(feesAccrued.amount0())) * feesAccruedFeeBps) / 10_000;
+        uint256 fee1 = (uint256(int256(feesAccrued.amount1())) * feesAccruedFeeBps) / 10_000;
 
         // Send remaining to the sender
         poolKey.currency0.transfer(data.sender, uint256(int256(feesAccrued.amount0())) - fee0);

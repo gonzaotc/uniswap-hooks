@@ -130,14 +130,10 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @param params The parameters for the liquidity addition.
      * @return delta The principal delta of the liquidity addition.
      */
-    function addLiquidity(AddLiquidityParams calldata params)
-        external
-        payable
-        virtual
-        ensure(params.deadline)
-        returns (BalanceDelta delta)
-    {
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
+    function addLiquidity(
+        AddLiquidityParams calldata params
+    ) external payable virtual ensure(params.deadline) returns (BalanceDelta delta) {
+        (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(poolKey.toId());
 
         if (sqrtPriceX96 == 0) revert PoolNotInitialized();
 
@@ -183,13 +179,10 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @param params The parameters for the liquidity removal.
      * @return delta The principal delta of the liquidity removal.
      */
-    function removeLiquidity(RemoveLiquidityParams calldata params)
-        external
-        virtual
-        ensure(params.deadline)
-        returns (BalanceDelta delta)
-    {
-        (uint160 sqrtPriceX96,,,) = poolManager.getSlot0(poolKey.toId());
+    function removeLiquidity(
+        RemoveLiquidityParams calldata params
+    ) external virtual ensure(params.deadline) returns (BalanceDelta delta) {
+        (uint160 sqrtPriceX96, , , ) = poolManager.getSlot0(poolKey.toId());
 
         if (sqrtPriceX96 == 0) revert PoolNotInitialized();
 
@@ -219,11 +212,9 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @return feesAccrued The balance delta of the fees generated in the liquidity range.
      */
     // slither-disable-next-line dead-code
-    function _modifyLiquidity(bytes memory params)
-        internal
-        virtual
-        returns (BalanceDelta callerDelta, BalanceDelta feesAccrued)
-    {
+    function _modifyLiquidity(
+        bytes memory params
+    ) internal virtual returns (BalanceDelta callerDelta, BalanceDelta feesAccrued) {
         (callerDelta, feesAccrued) = abi.decode(
             poolManager.unlock(abi.encode(CallbackData(msg.sender, abi.decode(params, (ModifyLiquidityParams))))),
             (BalanceDelta, BalanceDelta)
@@ -236,13 +227,9 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @param rawData The encoded `CallbackData` struct.
      * @return returnData The encoded caller and fees accrued deltas.
      */
-    function unlockCallback(bytes calldata rawData)
-        external
-        virtual
-        override
-        onlyPoolManager
-        returns (bytes memory returnData)
-    {
+    function unlockCallback(
+        bytes calldata rawData
+    ) external virtual override onlyPoolManager returns (bytes memory returnData) {
         CallbackData memory data = abi.decode(rawData, (CallbackData));
         PoolKey memory key = poolKey;
 
@@ -277,7 +264,10 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
         _handleAccruedFees(data, callerDelta, feesAccrued);
 
         emit HookModifyLiquidity(
-            PoolId.unwrap(poolKey.toId()), data.sender, principalDelta.amount0(), principalDelta.amount1()
+            PoolId.unwrap(poolKey.toId()),
+            data.sender,
+            principalDelta.amount0(),
+            principalDelta.amount1()
         );
 
         // Return both deltas so that slippage checks can be done on the principal delta
@@ -293,10 +283,11 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @param callerDelta The balance delta from the liquidity modification.
      * @param feesAccrued The balance delta of the fees generated in the liquidity range.
      */
-    function _handleAccruedFees(CallbackData memory data, BalanceDelta callerDelta, BalanceDelta feesAccrued)
-        internal
-        virtual
-    {
+    function _handleAccruedFees(
+        CallbackData memory data,
+        BalanceDelta callerDelta,
+        BalanceDelta feesAccrued
+    ) internal virtual {
         // Send any accrued fees to the sender
         poolKey.currency0.take(poolManager, data.sender, uint256(int256(feesAccrued.amount0())), false);
         poolKey.currency1.take(poolManager, data.sender, uint256(int256(feesAccrued.amount1())), false);
@@ -318,24 +309,24 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
     /**
      * @dev Revert when liquidity is attempted to be added via the `PoolManager`.
      */
-    function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         revert LiquidityOnlyViaHook();
     }
 
     /**
      * @dev Revert when liquidity is attempted to be removed via the `PoolManager`.
      */
-    function _beforeRemoveLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4)
-    {
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual override returns (bytes4) {
         revert LiquidityOnlyViaHook();
     }
 
@@ -355,10 +346,10 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * recommend using the `userInputSalt` parameter from the `AddLiquidityParams` struct as the salt
      * here.
      */
-    function _getAddLiquidity(uint160 sqrtPriceX96, AddLiquidityParams memory params)
-        internal
-        virtual
-        returns (bytes memory modify, uint256 shares);
+    function _getAddLiquidity(
+        uint160 sqrtPriceX96,
+        AddLiquidityParams memory params
+    ) internal virtual returns (bytes memory modify, uint256 shares);
 
     /**
      * @dev Get the liquidity modification to apply for a given liquidity removal,
@@ -375,10 +366,9 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * recommend using the `userInputSalt` parameter from the `AddLiquidityParams` struct as the salt
      * here.
      */
-    function _getRemoveLiquidity(RemoveLiquidityParams memory params)
-        internal
-        virtual
-        returns (bytes memory modify, uint256 shares);
+    function _getRemoveLiquidity(
+        RemoveLiquidityParams memory params
+    ) internal virtual returns (bytes memory modify, uint256 shares);
 
     /**
      * @dev Mint liquidity shares to the sender.
@@ -388,9 +378,12 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @param feesAccrued The balance delta of the fees generated in the liquidity range.
      * @param shares The liquidity shares to mint.
      */
-    function _mint(AddLiquidityParams memory params, BalanceDelta callerDelta, BalanceDelta feesAccrued, uint256 shares)
-        internal
-        virtual;
+    function _mint(
+        AddLiquidityParams memory params,
+        BalanceDelta callerDelta,
+        BalanceDelta feesAccrued,
+        uint256 shares
+    ) internal virtual;
 
     /**
      * @dev Burn liquidity shares from the sender.
@@ -413,21 +406,22 @@ abstract contract BaseCustomAccounting is BaseHook, IHookEvents, IUnlockCallback
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: true,
-            afterInitialize: false,
-            beforeAddLiquidity: true,
-            beforeRemoveLiquidity: true,
-            afterAddLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: false,
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: true,
+                afterInitialize: false,
+                beforeAddLiquidity: true,
+                beforeRemoveLiquidity: true,
+                afterAddLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: false,
+                afterSwap: false,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

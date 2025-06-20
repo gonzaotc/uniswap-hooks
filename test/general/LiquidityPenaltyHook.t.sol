@@ -39,15 +39,21 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         hook = LiquidityPenaltyHook(
             address(
                 uint160(
-                    Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_REMOVE_LIQUIDITY_FLAG
-                        | Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG | Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
+                    Hooks.AFTER_ADD_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG |
+                        Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
                 )
             )
         );
-        deployCodeTo("src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook", abi.encode(manager, 1), address(hook));
+        deployCodeTo(
+            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook",
+            abi.encode(manager, 1),
+            address(hook)
+        );
 
-        (key,) = initPool(currency0, currency1, IHooks(address(hook)), fee, SQRT_PRICE_1_1);
-        (noHookKey,) = initPool(currency0, currency1, IHooks(address(0)), fee, SQRT_PRICE_1_1);
+        (key, ) = initPool(currency0, currency1, IHooks(address(hook)), fee, SQRT_PRICE_1_1);
+        (noHookKey, ) = initPool(currency0, currency1, IHooks(address(0)), fee, SQRT_PRICE_1_1);
 
         vm.label(Currency.unwrap(currency0), "currency0");
         vm.label(Currency.unwrap(currency1), "currency1");
@@ -55,7 +61,11 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
 
     function test_deploy_LowOffset_reverts() public {
         vm.expectRevert();
-        deployCodeTo("src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook", abi.encode(manager, 0), address(hook));
+        deployCodeTo(
+            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook",
+            abi.encode(manager, 0),
+            address(hook)
+        );
     }
 
     function test_noSwaps() public {
@@ -76,8 +86,10 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, 0);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
             amountSpecified: -1e15, //exact input
@@ -87,8 +99,14 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         swapRouter.swap(noHookKey, swapParams, testSettings, "");
 
         // calculate earned fees due to the swap
-        BalanceDelta feeDelta =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0));
+        BalanceDelta feeDelta = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
+        );
 
         // remove liquidity during the same block (consolidate JIT attack), apply penalty
         vm.expectEmit(false, false, true, true);
@@ -101,13 +119,25 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         assertEq(hookDelta, noHookDelta - feeDelta, "Hooked: JIT penalty applied");
 
         // since the ataccker is the only LP, himself is the recipient of the whole donation in the hooked pool
-        BalanceDelta hookFeeDeltaAfterRemoval =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0));
+        BalanceDelta hookFeeDeltaAfterRemoval = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
+        );
         assertAproxEqAbs(hookFeeDeltaAfterRemoval, feeDelta, 1, "Hooked: Attacker received donation");
 
         // in the unhooked pool, the attacker should have collected the fees during liquidity removal
-        BalanceDelta noHookFeeDeltaAfterRemoval =
-            calculateFeeDelta(manager, noHookKey.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0));
+        BalanceDelta noHookFeeDeltaAfterRemoval = calculateFeeDelta(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
+        );
         assertEq(noHookFeeDeltaAfterRemoval, toBalanceDelta(0, 0), "Unhooked: Attacker collected fees");
     }
 
@@ -117,8 +147,10 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, 0);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
         SwapParams memory swapParams = SwapParams({
             zeroForOne: false,
             amountSpecified: -1e15, //exact input
@@ -163,8 +195,10 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, attackerSalt);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
             amountSpecified: -1e15, //exact input
@@ -174,8 +208,14 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         swapRouter.swap(noHookKey, swapParams, testSettings, "");
 
         // calculate lp fees earned due to the swap
-        BalanceDelta feeDelta =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bobSalt);
+        BalanceDelta feeDelta = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bobSalt
+        );
 
         // attacker removes the entire liquidity in the same block (consolidates JIT attack), penalty is applied.
         vm.expectEmit(false, false, true, true);
@@ -188,13 +228,25 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         assertEq(deltaHook, deltaNoHook - feeDelta, "Hooked: JIT penalty applied");
 
         // attacker's fees should be zero after removing liquidity
-        BalanceDelta hookAttackerFeesAfterRemoval =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, attackerSalt);
+        BalanceDelta hookAttackerFeesAfterRemoval = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            attackerSalt
+        );
         assertEq(hookAttackerFeesAfterRemoval, toBalanceDelta(0, 0), "Hooked: Attacker's feeDelta zero");
 
         // user should have received the attacker's fees donation in the hooked pool
-        BalanceDelta hookBobFeesAfterRemoval =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bobSalt);
+        BalanceDelta hookBobFeesAfterRemoval = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bobSalt
+        );
         assertEq(hookBobFeesAfterRemoval, feeDelta + feeDelta, "user received attacker's fees");
 
         // advance block
@@ -219,8 +271,10 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, attackerSalt);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
             amountSpecified: -1e15, //exact input
@@ -230,8 +284,14 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         swapRouter.swap(noHookKey, swapParams, testSettings, "");
 
         // calculate lp fees before adding liquidity
-        BalanceDelta feeDelta =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bobSalt);
+        BalanceDelta feeDelta = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bobSalt
+        );
 
         // add a very small amount of liquidity (1e14 wei), which triggers fee collection
         BalanceDelta hookDeltaBobAddition = modifyPoolLiquidity(key, -600, 600, 1e14, bobSalt);
@@ -243,7 +303,9 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         // user and attacker collected fees on unhooked, but witheld in hook
         assertEq(hookDeltaBobAddition, noHookDeltaBobAddition - feeDelta, "unhooked collected, hooked witheld");
         assertEq(
-            hookDeltaAttackerAddition, noHookDeltaAttackerAddition - feeDelta, "unhooked collected, hooked witheld"
+            hookDeltaAttackerAddition,
+            noHookDeltaAttackerAddition - feeDelta,
+            "unhooked collected, hooked witheld"
         );
 
         // hook should hold ERC-6909 claims for both user and attacker's fees
@@ -301,19 +363,37 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         swapAllCombinations(key, 1e15);
         swapAllCombinations(noHookKey, 1e15);
 
-        BalanceDelta feeDelta =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bobSalt);
+        BalanceDelta feeDelta = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bobSalt
+        );
 
         // attacker removes liquidity
         BalanceDelta deltaHook = modifyPoolLiquidity(key, -600, 600, -1e18, attackerSalt);
         BalanceDelta deltaNoHook = modifyPoolLiquidity(noHookKey, -600, 600, -1e18, attackerSalt);
 
-        BalanceDelta hookFeesAttackerAfterRemoval =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, attackerSalt);
+        BalanceDelta hookFeesAttackerAfterRemoval = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            attackerSalt
+        );
         assertEq(hookFeesAttackerAfterRemoval, toBalanceDelta(0, 0), "Attacker's fees got penalized");
 
-        BalanceDelta hookFeesBobAfterRemoval =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bobSalt);
+        BalanceDelta hookFeesBobAfterRemoval = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bobSalt
+        );
         assertEq(hookFeesBobAfterRemoval, feeDelta + feeDelta, "user received attacker's fees");
 
         // advance block
@@ -337,8 +417,14 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         donateRouter.donate(key, 100000, 100000, "");
         donateRouter.donate(noHookKey, 100000, 100000, "");
 
-        BalanceDelta feeDelta =
-            calculateFeeDelta(manager, key.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0));
+        BalanceDelta feeDelta = calculateFeeDelta(
+            manager,
+            key.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
+        );
 
         BalanceDelta deltaHook = modifyPoolLiquidity(key, -600, 600, -1e17, 0);
         BalanceDelta deltaNoHook = modifyPoolLiquidity(noHookKey, -600, 600, -1e17, 0);
@@ -369,25 +455,31 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         LiquidityPenaltyHook newHook = LiquidityPenaltyHook(
             address(
                 uint160(
-                    Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_REMOVE_LIQUIDITY_FLAG
-                        | Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG | Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
+                    Hooks.AFTER_ADD_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG |
+                        Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
                 ) + 2 ** 96
             ) // 2**96 is an offset to avoid collision with the hook address already in the test
         );
 
         deployCodeTo(
-            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook", abi.encode(manager, offset), address(newHook)
+            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook",
+            abi.encode(manager, offset),
+            address(newHook)
         );
 
-        (PoolKey memory poolKey,) = initPool(currency0, currency1, IHooks(address(newHook)), fee, SQRT_PRICE_1_1);
+        (PoolKey memory poolKey, ) = initPool(currency0, currency1, IHooks(address(newHook)), fee, SQRT_PRICE_1_1);
 
         // add liquidity
         modifyPoolLiquidity(poolKey, -600, 600, 1e18, 0);
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, 0);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
@@ -397,13 +489,21 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         swapRouter.swap(poolKey, swapParams, testSettings, "");
         swapRouter.swap(noHookKey, swapParams, testSettings, "");
 
-        (int128 feesExpected0, int128 feesExpected1) =
-            calculateFees(manager, noHookKey.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0));
+        (int128 feesExpected0, int128 feesExpected1) = calculateFees(
+            manager,
+            noHookKey.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
+        );
 
-        int128 feeDonation0 =
-            SafeCast.toInt128(FullMath.mulDiv(SafeCast.toUint128(feesExpected0), offset - removeBlockQuantity, offset));
-        int128 feeDonation1 =
-            SafeCast.toInt128(FullMath.mulDiv(SafeCast.toUint128(feesExpected1), offset - removeBlockQuantity, offset));
+        int128 feeDonation0 = SafeCast.toInt128(
+            FullMath.mulDiv(SafeCast.toUint128(feesExpected0), offset - removeBlockQuantity, offset)
+        );
+        int128 feeDonation1 = SafeCast.toInt128(
+            FullMath.mulDiv(SafeCast.toUint128(feesExpected1), offset - removeBlockQuantity, offset)
+        );
 
         // remove liquidity
         vm.roll(block.number + removeBlockQuantity);
@@ -421,25 +521,31 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         LiquidityPenaltyHook newHook = LiquidityPenaltyHook(
             address(
                 uint160(
-                    Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_REMOVE_LIQUIDITY_FLAG
-                        | Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG | Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
+                    Hooks.AFTER_ADD_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_FLAG |
+                        Hooks.AFTER_REMOVE_LIQUIDITY_RETURNS_DELTA_FLAG |
+                        Hooks.AFTER_ADD_LIQUIDITY_RETURNS_DELTA_FLAG
                 ) + 2 ** 96
             ) // 2**96 is an offset to avoid collision with the hook address already in the test
         );
 
         deployCodeTo(
-            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook", abi.encode(manager, offset), address(newHook)
+            "src/general/LiquidityPenaltyHook.sol:LiquidityPenaltyHook",
+            abi.encode(manager, offset),
+            address(newHook)
         );
 
-        (PoolKey memory poolKey,) = initPool(currency0, currency1, IHooks(address(newHook)), fee, SQRT_PRICE_1_1);
+        (PoolKey memory poolKey, ) = initPool(currency0, currency1, IHooks(address(newHook)), fee, SQRT_PRICE_1_1);
 
         // add liquidity
         modifyPoolLiquidity(poolKey, -600, 600, 1e18, 0);
         modifyPoolLiquidity(noHookKey, -600, 600, 1e18, 0);
 
         // swap
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
@@ -460,11 +566,35 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
 
     function test_JIT_MultiplePools() public {
         // Validates that the hook correctly supports multiple pools at the same time
-        (PoolKey memory poolKeyWithHook1,) = initPool(currency0, currency1, IHooks(address(hook)), 3000, SQRT_PRICE_1_2);
-        (PoolKey memory poolKeyWithHook2,) = initPool(currency0, currency1, IHooks(address(hook)), 5000, SQRT_PRICE_2_1);
+        (PoolKey memory poolKeyWithHook1, ) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            3000,
+            SQRT_PRICE_1_2
+        );
+        (PoolKey memory poolKeyWithHook2, ) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            5000,
+            SQRT_PRICE_2_1
+        );
 
-        (PoolKey memory poolKeyWithoutHook1,) = initPool(currency0, currency1, IHooks(address(0)), 3000, SQRT_PRICE_1_2);
-        (PoolKey memory poolKeyWithoutHook2,) = initPool(currency0, currency1, IHooks(address(0)), 5000, SQRT_PRICE_2_1);
+        (PoolKey memory poolKeyWithoutHook1, ) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(0)),
+            3000,
+            SQRT_PRICE_1_2
+        );
+        (PoolKey memory poolKeyWithoutHook2, ) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(0)),
+            5000,
+            SQRT_PRICE_2_1
+        );
 
         // add liquidity to both pools
         modifyPoolLiquidity(poolKeyWithHook1, -600, 600, 1e18, 0);
@@ -474,8 +604,10 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
         modifyPoolLiquidity(poolKeyWithoutHook2, -600, 600, 1e18, 0);
 
         // swap in both pools
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         SwapParams memory swapParams = SwapParams({
             zeroForOne: true,
@@ -491,10 +623,20 @@ contract LiquidityPenaltyHookTest is HookTest, BalanceDeltaAssertions {
 
         // calculate fees
         BalanceDelta noHookFeesKey1 = calculateFeeDelta(
-            manager, poolKeyWithoutHook1.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0)
+            manager,
+            poolKeyWithoutHook1.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
         );
         BalanceDelta noHookFeesKey2 = calculateFeeDelta(
-            manager, poolKeyWithoutHook2.toId(), address(modifyLiquidityRouter), -600, 600, bytes32(0)
+            manager,
+            poolKeyWithoutHook2.toId(),
+            address(modifyLiquidityRouter),
+            -600,
+            600,
+            bytes32(0)
         );
 
         // remove liquidity from both pools

@@ -34,14 +34,24 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
 
         dynamicFeesHooks = BaseDynamicFeeMock(address(uint160(Hooks.AFTER_INITIALIZE_FLAG)));
         deployCodeTo(
-            "test/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock", abi.encode(manager), address(dynamicFeesHooks)
+            "test/mocks/BaseDynamicFeeMock.sol:BaseDynamicFeeMock",
+            abi.encode(manager),
+            address(dynamicFeesHooks)
         );
 
-        (key,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (key, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
-        (noHookKey,) = initPoolAndAddLiquidity(
-            currency0, currency1, IHooks(address(dynamicFeesHooks)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1
+        (noHookKey, ) = initPoolAndAddLiquidity(
+            currency0,
+            currency1,
+            IHooks(address(dynamicFeesHooks)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
         );
 
         vm.label(Currency.unwrap(currency0), "currency0");
@@ -83,7 +93,12 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         // - receives token0 (unknown amount)
         // To make a profit, the ataccker must receive more token0 than he sent in the frontrun.
         BalanceDelta deltaAttack2WithKey = swap(key, false, -int256(deltaAttack1WithKey.amount1()), ZERO_BYTES);
-        BalanceDelta deltaAttack2WithoutKey = swap(noHookKey, false, -int256(deltaAttack1WithKey.amount1()), ZERO_BYTES);
+        BalanceDelta deltaAttack2WithoutKey = swap(
+            noHookKey,
+            false,
+            -int256(deltaAttack1WithKey.amount1()),
+            ZERO_BYTES
+        );
 
         // If the attacker receives equal or less token0 than he sent in the frontrun, he loses money.
         assertLe(
@@ -138,7 +153,12 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         // - receives token0 (amount sent in front run)
         // To make a profit, the attacker must send less token1 than he received in the frontrun.
         BalanceDelta deltaAttack2WithKey = swap(key, false, -int256(deltaAttack1WithKey.amount0()), ZERO_BYTES);
-        BalanceDelta deltaAttack2WithoutKey = swap(noHookKey, false, -int256(deltaAttack1WithKey.amount0()), ZERO_BYTES);
+        BalanceDelta deltaAttack2WithoutKey = swap(
+            noHookKey,
+            false,
+            -int256(deltaAttack1WithKey.amount0()),
+            ZERO_BYTES
+        );
 
         // If the attacker sends more or equal token1 than he received in the frontrun, he loses money.
         assertGe(
@@ -185,7 +205,12 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         // - receives token0 (unknown amount)
         // To make a profit, the attacker must receive more token0 than he sent in the frontrun.
         BalanceDelta deltaAttack2WithKey = swap(key, false, int256(-deltaAttack1WithKey.amount1()), ZERO_BYTES);
-        BalanceDelta deltaAttack2WithoutKey = swap(noHookKey, false, int256(-deltaAttack1WithKey.amount1()), ZERO_BYTES);
+        BalanceDelta deltaAttack2WithoutKey = swap(
+            noHookKey,
+            false,
+            int256(-deltaAttack1WithKey.amount1()),
+            ZERO_BYTES
+        );
 
         // If the attacker receives equal or less token0 than he sent in the frontrun, he loses money.
         assertLe(
@@ -232,7 +257,12 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         // - receives token0 (amount of token0 sent in front run)
         // To make a profit, the attacker must send less token1 than he received in the frontrun.
         BalanceDelta deltaAttack2WithKey = swap(key, false, -int256(deltaAttack1WithKey.amount0()), ZERO_BYTES);
-        BalanceDelta deltaAttack2WithoutKey = swap(noHookKey, false, -int256(deltaAttack1WithKey.amount0()), ZERO_BYTES);
+        BalanceDelta deltaAttack2WithoutKey = swap(
+            noHookKey,
+            false,
+            -int256(deltaAttack1WithKey.amount0()),
+            ZERO_BYTES
+        );
 
         // If the attacker sends more or equal token1 than he received in the frontrun, he loses money.
         assertGe(

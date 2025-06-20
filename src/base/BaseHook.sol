@@ -100,12 +100,11 @@ abstract contract BaseHook is IHooks {
     /**
      * @inheritdoc IHooks
      */
-    function beforeInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96)
-        external
-        virtual
-        onlyPoolManager
-        returns (bytes4)
-    {
+    function beforeInitialize(
+        address sender,
+        PoolKey calldata key,
+        uint160 sqrtPriceX96
+    ) external virtual onlyPoolManager returns (bytes4) {
         return _beforeInitialize(sender, key, sqrtPriceX96);
     }
 
@@ -120,12 +119,12 @@ abstract contract BaseHook is IHooks {
     /**
      * @inheritdoc IHooks
      */
-    function afterInitialize(address sender, PoolKey calldata key, uint160 sqrtPriceX96, int24 tick)
-        external
-        virtual
-        onlyPoolManager
-        returns (bytes4)
-    {
+    function afterInitialize(
+        address sender,
+        PoolKey calldata key,
+        uint160 sqrtPriceX96,
+        int24 tick
+    ) external virtual onlyPoolManager returns (bytes4) {
         return _afterInitialize(sender, key, sqrtPriceX96, tick);
     }
 
@@ -153,11 +152,12 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `beforeAddLiquidity`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _beforeAddLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
+    function _beforeAddLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 
@@ -177,11 +177,12 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `beforeRemoveLiquidity`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _beforeRemoveLiquidity(address, PoolKey calldata, ModifyLiquidityParams calldata, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
+    function _beforeRemoveLiquidity(
+        address,
+        PoolKey calldata,
+        ModifyLiquidityParams calldata,
+        bytes calldata
+    ) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 
@@ -246,12 +247,12 @@ abstract contract BaseHook is IHooks {
     /**
      * @inheritdoc IHooks
      */
-    function beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        external
-        virtual
-        onlyPoolManager
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) external virtual onlyPoolManager returns (bytes4, BeforeSwapDelta, uint24) {
         return _beforeSwap(sender, key, params, hookData);
     }
 
@@ -259,11 +260,12 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `beforeSwap`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _beforeSwap(address, PoolKey calldata, SwapParams calldata, bytes calldata)
-        internal
-        virtual
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address,
+        PoolKey calldata,
+        SwapParams calldata,
+        bytes calldata
+    ) internal virtual returns (bytes4, BeforeSwapDelta, uint24) {
         revert HookNotImplemented();
     }
 
@@ -284,11 +286,13 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `afterSwap`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _afterSwap(address, PoolKey calldata, SwapParams calldata, BalanceDelta, bytes calldata)
-        internal
-        virtual
-        returns (bytes4, int128)
-    {
+    function _afterSwap(
+        address,
+        PoolKey calldata,
+        SwapParams calldata,
+        BalanceDelta,
+        bytes calldata
+    ) internal virtual returns (bytes4, int128) {
         revert HookNotImplemented();
     }
 
@@ -309,11 +313,13 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `beforeDonate`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _beforeDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
+    function _beforeDonate(
+        address,
+        PoolKey calldata,
+        uint256,
+        uint256,
+        bytes calldata
+    ) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 
@@ -334,11 +340,13 @@ abstract contract BaseHook is IHooks {
      * @dev Hook implementation for `afterDonate`, to be overriden by the inheriting hook. The
      * flag must be set to true in the `getHookPermissions` function.
      */
-    function _afterDonate(address, PoolKey calldata, uint256, uint256, bytes calldata)
-        internal
-        virtual
-        returns (bytes4)
-    {
+    function _afterDonate(
+        address,
+        PoolKey calldata,
+        uint256,
+        uint256,
+        bytes calldata
+    ) internal virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 }

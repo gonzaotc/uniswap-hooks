@@ -35,12 +35,12 @@ contract BaseDynamicAfterFeeMock is BaseDynamicAfterFee {
         unspecified.take(poolManager, address(this), feeAmount, false);
     }
 
-    function _getTargetOutput(address, PoolKey calldata, SwapParams calldata, bytes calldata)
-        internal
-        view
-        override
-        returns (uint256, bool)
-    {
+    function _getTargetOutput(
+        address,
+        PoolKey calldata,
+        SwapParams calldata,
+        bytes calldata
+    ) internal view override returns (uint256, bool) {
         return (targetOutput, applyTargetOutput);
     }
 

@@ -52,12 +52,10 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @dev Defines how the liquidity modification data is encoded and returned
      * for an add liquidity request.
      */
-    function _getAddLiquidity(uint160, AddLiquidityParams memory params)
-        internal
-        virtual
-        override
-        returns (bytes memory, uint256)
-    {
+    function _getAddLiquidity(
+        uint160,
+        AddLiquidityParams memory params
+    ) internal virtual override returns (bytes memory, uint256) {
         (uint256 amount0, uint256 amount1, uint256 shares) = _getAmountIn(params);
         return (abi.encode(amount0.toInt128(), amount1.toInt128()), shares);
     }
@@ -66,12 +64,9 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @dev Defines how the liquidity modification data is encoded and returned
      * for a remove liquidity request.
      */
-    function _getRemoveLiquidity(RemoveLiquidityParams memory params)
-        internal
-        virtual
-        override
-        returns (bytes memory, uint256)
-    {
+    function _getRemoveLiquidity(
+        RemoveLiquidityParams memory params
+    ) internal virtual override returns (bytes memory, uint256) {
         (uint256 amount0, uint256 amount1, uint256 shares) = _getAmountOut(params);
         return (abi.encode(-amount0.toInt128(), -amount1.toInt128()), shares);
     }
@@ -83,18 +78,19 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * NOTE: In order to take and settle tokens from the pool, the hook must hold the liquidity added
      * via the {addLiquidity} function.
      */
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata)
-        internal
-        virtual
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata
+    ) internal virtual override returns (bytes4, BeforeSwapDelta, uint24) {
         // Determine if the swap is exact input or exact output
         bool exactInput = params.amountSpecified < 0;
 
         // Determine which currency is specified and which is unspecified
-        (Currency specified, Currency unspecified) =
-            (params.zeroForOne == exactInput) ? (key.currency0, key.currency1) : (key.currency1, key.currency0);
+        (Currency specified, Currency unspecified) = (params.zeroForOne == exactInput)
+            ? (key.currency0, key.currency1)
+            : (key.currency1, key.currency0);
 
         // Get the positive specified amount
         uint256 specifiedAmount = exactInput ? uint256(-params.amountSpecified) : uint256(params.amountSpecified);
@@ -159,12 +155,9 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @return callerDelta The balance delta from the liquidity modification. This is the total of both principal and fee deltas.
      * @return feesAccrued The balance delta of the fees generated in the liquidity range.
      */
-    function _modifyLiquidity(bytes memory params)
-        internal
-        virtual
-        override
-        returns (BalanceDelta callerDelta, BalanceDelta feesAccrued)
-    {
+    function _modifyLiquidity(
+        bytes memory params
+    ) internal virtual override returns (BalanceDelta callerDelta, BalanceDelta feesAccrued) {
         (int128 amount0, int128 amount1) = abi.decode(params, (int128, int128));
         (callerDelta, feesAccrued) = abi.decode(
             poolManager.unlock(abi.encode(CallbackDataCustom(msg.sender, amount0, amount1))),
@@ -179,13 +172,9 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @param rawData The callback data encoded in the {_modifyLiquidity} function.
      * @return returnData The encoded caller and fees accrued deltas.
      */
-    function unlockCallback(bytes calldata rawData)
-        external
-        virtual
-        override
-        onlyPoolManager
-        returns (bytes memory returnData)
-    {
+    function unlockCallback(
+        bytes calldata rawData
+    ) external virtual override onlyPoolManager returns (bytes memory returnData) {
         CallbackDataCustom memory data = abi.decode(rawData, (CallbackDataCustom));
 
         int128 amount0 = 0;
@@ -258,10 +247,10 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @param unspecifiedAmount The amount of the unspecified currency to be taken or settled.
      * @return swapFeeAmount The amount of fees to be paid to LPs in the swap (in currency0 and currency1).
      */
-    function _getSwapFeeAmount(SwapParams calldata params, uint256 unspecifiedAmount)
-        internal
-        virtual
-        returns (uint256 swapFeeAmount);
+    function _getSwapFeeAmount(
+        SwapParams calldata params,
+        uint256 unspecifiedAmount
+    ) internal virtual returns (uint256 swapFeeAmount);
 
     /**
      * @dev Calculate the amount of tokens to use and liquidity shares to burn for a remove liquidity request.
@@ -269,10 +258,9 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @return amount1 The amount of token1 to be received by the liquidity provider.
      * @return shares The amount of liquidity shares to be burned by the liquidity provider.
      */
-    function _getAmountOut(RemoveLiquidityParams memory params)
-        internal
-        virtual
-        returns (uint256 amount0, uint256 amount1, uint256 shares);
+    function _getAmountOut(
+        RemoveLiquidityParams memory params
+    ) internal virtual returns (uint256 amount0, uint256 amount1, uint256 shares);
 
     /**
      * @dev Calculate the amount of tokens to use and liquidity shares to mint for an add liquidity request.
@@ -280,10 +268,9 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @return amount1 The amount of token1 to be sent by the liquidity provider.
      * @return shares The amount of liquidity shares to be minted by the liquidity provider.
      */
-    function _getAmountIn(AddLiquidityParams memory params)
-        internal
-        virtual
-        returns (uint256 amount0, uint256 amount1, uint256 shares);
+    function _getAmountIn(
+        AddLiquidityParams memory params
+    ) internal virtual returns (uint256 amount0, uint256 amount1, uint256 shares);
 
     /**
      * @dev Set the hook permissions, specifically `beforeInitialize`, `beforeAddLiquidity`, `beforeRemoveLiquidity`,
@@ -292,21 +279,22 @@ abstract contract BaseCustomCurve is BaseCustomAccounting {
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: true,
-            afterInitialize: false,
-            beforeAddLiquidity: true,
-            beforeRemoveLiquidity: true,
-            afterAddLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: true,
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: true,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: true,
+                afterInitialize: false,
+                beforeAddLiquidity: true,
+                beforeRemoveLiquidity: true,
+                afterAddLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: false,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: true,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

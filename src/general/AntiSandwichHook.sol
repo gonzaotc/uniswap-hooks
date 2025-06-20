@@ -73,12 +73,12 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
      * For subsequent swaps in the same block, it calculates a target output based on the beginning-of-block state,
      * and sets the inherited `_targetOutput` and `_applyTargetOutput` variables to enforce price limits in {_afterSwap}.
      */
-    function _beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
-        internal
-        virtual
-        override
-        returns (bytes4, BeforeSwapDelta, uint24)
-    {
+    function _beforeSwap(
+        address sender,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata hookData
+    ) internal virtual override returns (bytes4, BeforeSwapDelta, uint24) {
         PoolId poolId = key.toId();
         Checkpoint storage _lastCheckpoint = _lastCheckpoints[poolId];
 
@@ -90,7 +90,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
             _lastCheckpoint.blockNumber = currentBlock;
 
             // iterate over ticks
-            (, int24 currentTick,,) = poolManager.getSlot0(poolId);
+            (, int24 currentTick, , ) = poolManager.getSlot0(poolId);
 
             int24 lastTick = _lastCheckpoint.state.slot0.tick();
             int24 step = currentTick > lastTick ? key.tickSpacing : -key.tickSpacing;
@@ -104,8 +104,8 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
                 ) = poolManager.getTickInfo(poolId, tick);
             }
 
-            (_lastCheckpoint.state.feeGrowthGlobal0X128, _lastCheckpoint.state.feeGrowthGlobal1X128) =
-                poolManager.getFeeGrowthGlobals(poolId);
+            (_lastCheckpoint.state.feeGrowthGlobal0X128, _lastCheckpoint.state.feeGrowthGlobal1X128) = poolManager
+                .getFeeGrowthGlobals(poolId);
             _lastCheckpoint.state.liquidity = poolManager.getLiquidity(poolId);
         }
 
@@ -129,7 +129,9 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
             return (this.afterSwap.selector, 0);
         }
 
-        int128 unspecifiedAmount = (params.amountSpecified < 0 == params.zeroForOne) ? delta.amount1() : delta.amount0();
+        int128 unspecifiedAmount = (params.amountSpecified < 0 == params.zeroForOne)
+            ? delta.amount1()
+            : delta.amount0();
         if (unspecifiedAmount < 0) unspecifiedAmount = -unspecifiedAmount;
 
         Currency unspecified = (params.amountSpecified < 0 == params.zeroForOne) ? (key.currency1) : (key.currency0);
@@ -170,12 +172,12 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
      * - For currency1 to currency0 swaps (zeroForOne = false): The price is fixed at the beginning-of-block
      *   price, which prevents attackers from manipulating the price within a block.
      */
-    function _getTargetOutput(address, PoolKey calldata key, SwapParams calldata params, bytes calldata)
-        internal
-        virtual
-        override
-        returns (uint256 targetOutput, bool applyTargetOutput)
-    {
+    function _getTargetOutput(
+        address,
+        PoolKey calldata key,
+        SwapParams calldata params,
+        bytes calldata
+    ) internal virtual override returns (uint256 targetOutput, bool applyTargetOutput) {
         if (params.zeroForOne) {
             // when zeroForOne == true, the xy=k curve is used, so the target output doesn't matter, since it's not going to be used
             // we return the max value to indicate that the target output is not applicable
@@ -186,7 +188,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
 
         // calculate target output
         // NOTE: this functions does not execute the swap, it only calculates the output of a swap in the given state
-        (BalanceDelta targetDelta,,,) = Pool.swap(
+        (BalanceDelta targetDelta, , , ) = Pool.swap(
             _lastCheckpoint.state,
             Pool.SwapParams({
                 tickSpacing: key.tickSpacing,
@@ -197,8 +199,9 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
             })
         );
 
-        int128 target =
-            (params.amountSpecified < 0 == params.zeroForOne) ? targetDelta.amount1() : targetDelta.amount0();
+        int128 target = (params.amountSpecified < 0 == params.zeroForOne)
+            ? targetDelta.amount1()
+            : targetDelta.amount0();
 
         if (target < 0) target = -target;
 
@@ -240,21 +243,22 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
      * @return permissions The hook permissions.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: false,
-            beforeAddLiquidity: false,
-            afterAddLiquidity: false,
-            beforeRemoveLiquidity: false,
-            afterRemoveLiquidity: false,
-            beforeSwap: true,
-            afterSwap: true,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: true,
-            afterAddLiquidityReturnDelta: false,
-            afterRemoveLiquidityReturnDelta: false
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: false,
+                beforeAddLiquidity: false,
+                afterAddLiquidity: false,
+                beforeRemoveLiquidity: false,
+                afterRemoveLiquidity: false,
+                beforeSwap: true,
+                afterSwap: true,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: true,
+                afterAddLiquidityReturnDelta: false,
+                afterRemoveLiquidityReturnDelta: false
+            });
     }
 }

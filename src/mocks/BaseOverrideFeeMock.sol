@@ -9,12 +9,12 @@ contract BaseOverrideFeeMock is BaseOverrideFee {
 
     constructor(IPoolManager _poolManager) BaseOverrideFee(_poolManager) {}
 
-    function _getFee(address, PoolKey calldata, SwapParams calldata, bytes calldata)
-        internal
-        view
-        override
-        returns (uint24)
-    {
+    function _getFee(
+        address,
+        PoolKey calldata,
+        SwapParams calldata,
+        bytes calldata
+    ) internal view override returns (uint24) {
         return fee;
     }
 

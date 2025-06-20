@@ -82,7 +82,7 @@ contract LiquidityPenaltyHook is BaseHook {
         address sender,
         PoolKey calldata key,
         ModifyLiquidityParams calldata params,
-        BalanceDelta, /* delta */
+        BalanceDelta /* delta */,
         BalanceDelta feeDelta,
         bytes calldata
     ) internal virtual override returns (bytes4, BalanceDelta) {
@@ -118,7 +118,7 @@ contract LiquidityPenaltyHook is BaseHook {
         address sender,
         PoolKey calldata key,
         ModifyLiquidityParams calldata params,
-        BalanceDelta, /* delta */
+        BalanceDelta /* delta */,
         BalanceDelta feeDelta,
         bytes calldata
     ) internal virtual override returns (bytes4, BalanceDelta) {
@@ -135,8 +135,8 @@ contract LiquidityPenaltyHook is BaseHook {
         uint48 lastAddedLiquidityBlock = getLastAddedLiquidityBlock(poolId, positionKey);
 
         if (
-            _getBlockNumber() - lastAddedLiquidityBlock < getBlockNumberOffset()
-                && totalFees != BalanceDeltaLibrary.ZERO_DELTA
+            _getBlockNumber() - lastAddedLiquidityBlock < getBlockNumberOffset() &&
+            totalFees != BalanceDeltaLibrary.ZERO_DELTA
         ) {
             BalanceDelta liquidityPenalty = _calculateLiquidityPenalty(totalFees, lastAddedLiquidityBlock);
 
@@ -145,7 +145,10 @@ contract LiquidityPenaltyHook is BaseHook {
             if (poolManager.getLiquidity(poolId) == 0) revert NoLiquidityToReceiveDonation();
 
             poolManager.donate(
-                key, uint256(int256(liquidityPenalty.amount0())), uint256(int256(liquidityPenalty.amount1())), ""
+                key,
+                uint256(int256(liquidityPenalty.amount0())),
+                uint256(int256(liquidityPenalty.amount1())),
+                ""
             );
 
             return (this.afterRemoveLiquidity.selector, liquidityPenalty - withheldFees);
@@ -189,11 +192,10 @@ contract LiquidityPenaltyHook is BaseHook {
     /**
      * @dev Returns `withheldFees` from this hook to the liquidity provider.
      */
-    function _settleFeesFromHook(PoolKey calldata key, bytes32 positionKey)
-        internal
-        virtual
-        returns (BalanceDelta withheldFees)
-    {
+    function _settleFeesFromHook(
+        PoolKey calldata key,
+        bytes32 positionKey
+    ) internal virtual returns (BalanceDelta withheldFees) {
         PoolId poolId = key.toId();
 
         withheldFees = getWithheldFees(poolId, positionKey);
@@ -222,11 +224,10 @@ contract LiquidityPenaltyHook is BaseHook {
      *
      * NOTE: Won't overflow if `currentBlockNumber - lastAddedLiquidityBlock < blockNumberOffset` is verified prior to calling this function.
      */
-    function _calculateLiquidityPenalty(BalanceDelta feeDelta, uint48 lastAddedLiquidityBlock)
-        internal
-        virtual
-        returns (BalanceDelta liquidityPenalty)
-    {
+    function _calculateLiquidityPenalty(
+        BalanceDelta feeDelta,
+        uint48 lastAddedLiquidityBlock
+    ) internal virtual returns (BalanceDelta liquidityPenalty) {
         uint48 currentBlockNumber = _getBlockNumber();
         uint48 blockNumberOffset = getBlockNumberOffset();
 
@@ -278,21 +279,22 @@ contract LiquidityPenaltyHook is BaseHook {
      * @dev Set the hooks permissions, specifically `afterAddLiquidity`, `afterAddLiquidityReturnDelta`, `afterRemoveLiquidity` and `afterRemoveLiquidityReturnDelta`.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
-        return Hooks.Permissions({
-            beforeInitialize: false,
-            afterInitialize: false,
-            beforeAddLiquidity: false,
-            afterAddLiquidity: true,
-            beforeRemoveLiquidity: false,
-            afterRemoveLiquidity: true,
-            beforeSwap: false,
-            afterSwap: false,
-            beforeDonate: false,
-            afterDonate: false,
-            beforeSwapReturnDelta: false,
-            afterSwapReturnDelta: false,
-            afterAddLiquidityReturnDelta: true,
-            afterRemoveLiquidityReturnDelta: true
-        });
+        return
+            Hooks.Permissions({
+                beforeInitialize: false,
+                afterInitialize: false,
+                beforeAddLiquidity: false,
+                afterAddLiquidity: true,
+                beforeRemoveLiquidity: false,
+                afterRemoveLiquidity: true,
+                beforeSwap: false,
+                afterSwap: false,
+                beforeDonate: false,
+                afterDonate: false,
+                beforeSwapReturnDelta: false,
+                afterSwapReturnDelta: false,
+                afterAddLiquidityReturnDelta: true,
+                afterRemoveLiquidityReturnDelta: true
+            });
     }
 }

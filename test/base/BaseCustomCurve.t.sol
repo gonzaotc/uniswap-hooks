@@ -50,8 +50,11 @@ contract BaseCustomCurveTest is Test, Deployers {
             payable(
                 address(
                     uint160(
-                        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
-                            | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
+                        Hooks.BEFORE_INITIALIZE_FLAG |
+                            Hooks.BEFORE_SWAP_FLAG |
+                            Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG |
+                            Hooks.BEFORE_ADD_LIQUIDITY_FLAG |
+                            Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG
                     )
                 )
             )
@@ -59,7 +62,13 @@ contract BaseCustomCurveTest is Test, Deployers {
         deployCodeTo("test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock", abi.encode(manager), address(hook));
 
         deployMintAndApprove2Currencies();
-        (key, id) = initPool(currency0, currency1, IHooks(address(hook)), LPFeeLibrary.DYNAMIC_FEE_FLAG, SQRT_PRICE_1_1);
+        (key, id) = initPool(
+            currency0,
+            currency1,
+            IHooks(address(hook)),
+            LPFeeLibrary.DYNAMIC_FEE_FLAG,
+            SQRT_PRICE_1_1
+        );
 
         ERC20(Currency.unwrap(currency0)).approve(address(hook), type(uint256).max);
         ERC20(Currency.unwrap(currency1)).approve(address(hook), type(uint256).max);
@@ -88,7 +97,14 @@ contract BaseCustomCurveTest is Test, Deployers {
         uint256 prevBalance1 = key.currency1.balanceOf(address(this));
 
         BaseCustomAccounting.AddLiquidityParams memory addLiquidityParams = BaseCustomAccounting.AddLiquidityParams(
-            10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+            10 ether,
+            10 ether,
+            9 ether,
+            9 ether,
+            MAX_DEADLINE,
+            MIN_TICK,
+            MAX_TICK,
+            bytes32(0)
         );
 
         hook.addLiquidity(addLiquidityParams);
@@ -103,7 +119,11 @@ contract BaseCustomCurveTest is Test, Deployers {
 
     function test_addLiquidity_native_succeeds() public {
         BaseCustomCurveMock nativeHook = BaseCustomCurveMock(payable(0x1000000000000000000000000000000000002A88));
-        deployCodeTo("test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock", abi.encode(manager), address(nativeHook));
+        deployCodeTo(
+            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock",
+            abi.encode(manager),
+            address(nativeHook)
+        );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
             currency1,
@@ -121,7 +141,14 @@ contract BaseCustomCurveTest is Test, Deployers {
         uint256 prevBalance1 = key.currency1.balanceOf(address(this));
 
         BaseCustomAccounting.AddLiquidityParams memory addLiquidityParams = BaseCustomAccounting.AddLiquidityParams(
-            10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+            10 ether,
+            10 ether,
+            9 ether,
+            9 ether,
+            MAX_DEADLINE,
+            MIN_TICK,
+            MAX_TICK,
+            bytes32(0)
         );
 
         nativeHook.addLiquidity{value: 10 ether}(addLiquidityParams);
@@ -151,7 +178,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                9 ether,
+                9 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -164,10 +198,15 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(id, address(swapRouter), 0, 0, 79228162514264337593543950336, 0, 0, 0);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: -1 ether, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory settings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: -1 ether,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         swapRouter.swap(key, params, settings, ZERO_BYTES);
 
@@ -176,7 +215,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                5 ether, 5 ether, 4 ether, 4 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                5 ether,
+                5 ether,
+                4 ether,
+                4 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -197,7 +243,14 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.expectRevert(BaseCustomAccounting.TooMuchSlippage.selector);
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 100000 ether, 100000 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                100000 ether,
+                100000 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
     }
@@ -205,20 +258,39 @@ contract BaseCustomCurveTest is Test, Deployers {
     function test_removeLiquidity_tooMuchSlippage_reverts() public {
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
         vm.expectRevert(BaseCustomAccounting.TooMuchSlippage.selector);
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                10 ether, 6 ether, 6 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                6 ether,
+                6 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                10 ether, 4 ether, 4 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                4 ether,
+                4 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
     }
@@ -226,14 +298,26 @@ contract BaseCustomCurveTest is Test, Deployers {
     function test_swap_twoSwaps_succeeds() public {
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                2 ether, 2 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                2 ether,
+                2 ether,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 1 ether, sqrtPriceLimitX96: MIN_PRICE_LIMIT});
-        PoolSwapTest.TestSettings memory settings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 1 ether,
+            sqrtPriceLimitX96: MIN_PRICE_LIMIT
+        });
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         swapRouter.swap(key, params, settings, ZERO_BYTES);
         swapRouter.swap(key, params, settings, ZERO_BYTES);
@@ -242,7 +326,14 @@ contract BaseCustomCurveTest is Test, Deployers {
     function test_removeLiquidity_initialRemove_succeeds() public {
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                100 ether, 100 ether, 99 ether, 99 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                100 ether,
+                100 ether,
+                99 ether,
+                99 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -251,8 +342,8 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.approve(address(hook), type(uint256).max);
 
-        BaseCustomAccounting.RemoveLiquidityParams memory removeLiquidityParams =
-            BaseCustomAccounting.RemoveLiquidityParams(1 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0));
+        BaseCustomAccounting.RemoveLiquidityParams memory removeLiquidityParams = BaseCustomAccounting
+            .RemoveLiquidityParams(1 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0));
 
         hook.removeLiquidity(removeLiquidityParams);
 
@@ -287,7 +378,13 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.expectRevert();
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                1000000 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                1000000 ether,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
     }
@@ -298,7 +395,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                9 ether,
+                9 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -322,7 +426,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                9 ether,
+                9 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -332,7 +443,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                5 ether, 2.5 ether, 2 ether, 2 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                5 ether,
+                2.5 ether,
+                2 ether,
+                2 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -361,7 +479,13 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                liquidityTokenBal, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                liquidityTokenBal,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -370,7 +494,11 @@ contract BaseCustomCurveTest is Test, Deployers {
 
     function test_removeLiquidity_native_succeeds() public {
         BaseCustomCurveMock nativeHook = BaseCustomCurveMock(payable(0x1000000000000000000000000000000000002A88));
-        deployCodeTo("test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock", abi.encode(manager), address(nativeHook));
+        deployCodeTo(
+            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock",
+            abi.encode(manager),
+            address(nativeHook)
+        );
         (key, id) = initPool(
             CurrencyLibrary.ADDRESS_ZERO,
             currency1,
@@ -389,7 +517,14 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         nativeHook.addLiquidity{value: 10 ether}(
             BaseCustomAccounting.AddLiquidityParams(
-                10 ether, 10 ether, 9 ether, 9 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                10 ether,
+                10 ether,
+                9 ether,
+                9 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -397,7 +532,13 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         nativeHook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                liquidityTokenBal, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                liquidityTokenBal,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -429,7 +570,14 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.prank(address(1));
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                100 ether, 100 ether, 99 ether, 99 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                100 ether,
+                100 ether,
+                99 ether,
+                99 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -437,22 +585,40 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.prank(address(2));
         hook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                100 ether, 100 ether, 99 ether, 99 ether, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                100 ether,
+                100 ether,
+                99 ether,
+                99 ether,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: 100 ether, sqrtPriceLimitX96: SQRT_PRICE_1_4});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: 100 ether,
+            sqrtPriceLimitX96: SQRT_PRICE_1_4
+        });
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
 
         // Test contract removes liquidity, succeeds
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                hook.balanceOf(address(this)), 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                hook.balanceOf(address(this)),
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -473,8 +639,10 @@ contract BaseCustomCurveTest is Test, Deployers {
             sqrtPriceLimitX96: SQRT_PRICE_1_4
         });
 
-        PoolSwapTest.TestSettings memory testSettings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         swapRouter.swap(key, params, testSettings, ZERO_BYTES);
 
@@ -482,7 +650,13 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                liquidityTokenBal, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                liquidityTokenBal,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 
@@ -490,9 +664,13 @@ contract BaseCustomCurveTest is Test, Deployers {
     }
 
     function test_removeLiquidity_notInitialized_reverts() public {
-        BaseCustomCurveMock uninitializedHook = BaseCustomCurveMock(payable(0x1000000000000000000000000000000000002A88));
+        BaseCustomCurveMock uninitializedHook = BaseCustomCurveMock(
+            payable(0x1000000000000000000000000000000000002A88)
+        );
         deployCodeTo(
-            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock", abi.encode(manager), address(uninitializedHook)
+            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock",
+            abi.encode(manager),
+            address(uninitializedHook)
         );
 
         vm.expectRevert(BaseCustomAccounting.PoolNotInitialized.selector);
@@ -502,15 +680,26 @@ contract BaseCustomCurveTest is Test, Deployers {
     }
 
     function test_addLiquidity_notInitialized_reverts() public {
-        BaseCustomCurveMock uninitializedHook = BaseCustomCurveMock(payable(0x1000000000000000000000000000000000002A88));
+        BaseCustomCurveMock uninitializedHook = BaseCustomCurveMock(
+            payable(0x1000000000000000000000000000000000002A88)
+        );
         deployCodeTo(
-            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock", abi.encode(manager), address(uninitializedHook)
+            "test/mocks/BaseCustomCurveMock.sol:BaseCustomCurveMock",
+            abi.encode(manager),
+            address(uninitializedHook)
         );
 
         vm.expectRevert(BaseCustomAccounting.PoolNotInitialized.selector);
         uninitializedHook.addLiquidity(
             BaseCustomAccounting.AddLiquidityParams(
-                1 ether, 1 ether, 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                1 ether,
+                1 ether,
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
     }
@@ -532,10 +721,15 @@ contract BaseCustomCurveTest is Test, Deployers {
         vm.expectEmit(true, true, true, true, address(manager));
         emit Swap(id, address(swapRouter), 0, 0, 79228162514264337593543950336, 0, 0, 0);
 
-        SwapParams memory params =
-            SwapParams({zeroForOne: true, amountSpecified: -0.5 ether, sqrtPriceLimitX96: SQRT_PRICE_1_2});
-        PoolSwapTest.TestSettings memory settings =
-            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        SwapParams memory params = SwapParams({
+            zeroForOne: true,
+            amountSpecified: -0.5 ether,
+            sqrtPriceLimitX96: SQRT_PRICE_1_2
+        });
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({
+            takeClaims: false,
+            settleUsingBurn: false
+        });
 
         swapRouter.swap(key, params, settings, ZERO_BYTES);
 
@@ -544,7 +738,13 @@ contract BaseCustomCurveTest is Test, Deployers {
 
         hook.removeLiquidity(
             BaseCustomAccounting.RemoveLiquidityParams(
-                hook.balanceOf(address(this)), 0, 0, MAX_DEADLINE, MIN_TICK, MAX_TICK, bytes32(0)
+                hook.balanceOf(address(this)),
+                0,
+                0,
+                MAX_DEADLINE,
+                MIN_TICK,
+                MAX_TICK,
+                bytes32(0)
             )
         );
 

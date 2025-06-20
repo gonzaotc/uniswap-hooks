@@ -25,10 +25,12 @@ contract BalanceDeltaAssertions is Test {
     }
 
     // @dev Asserts that `delta1` is approximately equal to `delta2` for both amount0 and amount1 with a custom error message
-    function assertAproxEqAbs(BalanceDelta delta1, BalanceDelta delta2, uint256 absTolerance, string memory err)
-        internal
-        pure
-    {
+    function assertAproxEqAbs(
+        BalanceDelta delta1,
+        BalanceDelta delta2,
+        uint256 absTolerance,
+        string memory err
+    ) internal pure {
         assertApproxEqAbs(BalanceDeltaLibrary.amount1(delta1), BalanceDeltaLibrary.amount1(delta2), absTolerance, err);
         assertApproxEqAbs(BalanceDeltaLibrary.amount0(delta1), BalanceDeltaLibrary.amount0(delta2), absTolerance, err);
     }

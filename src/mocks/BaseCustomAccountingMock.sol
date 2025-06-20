@@ -24,12 +24,10 @@ contract BaseCustomAccountingMock is BaseCustomAccounting, ERC20 {
         nativeRefund = nativeRefundFee;
     }
 
-    function _getAddLiquidity(uint160 sqrtPriceX96, AddLiquidityParams memory params)
-        internal
-        view
-        override
-        returns (bytes memory modify, uint256 liquidity)
-    {
+    function _getAddLiquidity(
+        uint160 sqrtPriceX96,
+        AddLiquidityParams memory params
+    ) internal view override returns (bytes memory modify, uint256 liquidity) {
         liquidity = LiquidityAmounts.getLiquidityForAmounts(
             sqrtPriceX96,
             TickMath.getSqrtPriceAtTick(params.tickLower),
@@ -51,12 +49,9 @@ contract BaseCustomAccountingMock is BaseCustomAccounting, ERC20 {
         );
     }
 
-    function _getRemoveLiquidity(RemoveLiquidityParams memory params)
-        internal
-        view
-        override
-        returns (bytes memory, uint256 liquidity)
-    {
+    function _getRemoveLiquidity(
+        RemoveLiquidityParams memory params
+    ) internal view override returns (bytes memory, uint256 liquidity) {
         liquidity = FullMath.mulDiv(params.liquidity, poolManager.getLiquidity(poolKey.toId()), totalSupply());
 
         return (
