@@ -35,8 +35,4 @@ depth          = 16         # The number of times to run the invariant tests
 
 [fmt]
 # Disable forge formatter in favor of prettier formater. Use `npm run lint` instead.
-<<<<<<< HEAD
-ignore = ['*']
-=======
 ignore = ["**/*"]
->>>>>>> ffb8ad624b1b903c3df0eb08d03a623d78fdcf9a
