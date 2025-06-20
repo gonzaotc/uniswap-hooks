@@ -61,7 +61,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
     }
 
     /// @dev Maps each pool to its last checkpoint.
-    mapping(PoolId id => Checkpoint) private _lastCheckpoints;
+    mapping(PoolId id => Checkpoint checkpoint) private _lastCheckpoints;
 
     constructor(IPoolManager _poolManager) BaseDynamicAfterFee(_poolManager) {}
 
