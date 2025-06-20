@@ -13,8 +13,8 @@
     "lint": "prettier --log-level warn '{src,test}/**/*.sol' --check; npm run solhint",
     "lint:fix": "prettier --log-level warn '{src,test}/**/*.sol' --write",
     "solhint": "npm run solhint:src && npm run solhint:test",
-    "solhint:src": "solhint --noPoster 'src/**/*.sol' --config solhint.src.config.js",
-    "solhint:test": "solhint --noPoster 'test/**/*.sol' --config solhint.test.config.js",
+    "solhint:src": "solhint --noPoster 'src/**/*.sol' --config solhint/solhint.src.config.js",
+    "solhint:test": "solhint --noPoster 'test/**/*.sol' --config solhint/solhint.test.config.js",
     "prepare": "husky"
   },
   "repository": "https://github.com/OpenZeppelin/uniswap-hooks.git",
@@ -36,9 +36,13 @@
     "solidity-docgen": "^0.6.0-beta.36"
   },
   "lint-staged": {
-    "*.sol": [
+    "src/**/*.sol": [
       "prettier --log-level warn --ignore-path .gitignore --check",
-      "solhint --noPoster"
+      "solhint --noPoster --config solhint/solhint.src.config.js"
+    ],
+    "test/**/*.sol": [
+      "prettier --log-level warn --ignore-path .gitignore --check",
+      "solhint --noPoster --config solhint/solhint.test.config.js"
     ]
   }
 }
