@@ -58,7 +58,9 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
     }
 
     /// @notice Regression test to ensure quote simulation does not mutate checkpoint state.
-    function test_quoteSwapAtCheckpoint_isStableAcrossCalls(int256 swapAmount, bool zeroForOne) public {
+    function test_quoteSwapAtCheckpoint_isStableAcrossCalls(int256 swapAmount, bool zeroForOne, uint8 iterations)
+        public
+    {
         swapAmount = bound(swapAmount, -1e16, 1e16);
         vm.assume(swapAmount != 0);
 
@@ -71,10 +73,11 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
             sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
         });
 
-        BalanceDelta quote1 = hook.quoteSwapAtCheckpoint(key, params);
-        BalanceDelta quote2 = hook.quoteSwapAtCheckpoint(key, params);
-
-        assertEq(quote1, quote2, "repeated quotes must be deterministic and non-mutating");
+        for (uint8 i = 0; i < iterations; i++) {
+            BalanceDelta quote1 = hook.quoteSwapAtCheckpoint(key, params);
+            BalanceDelta quote2 = hook.quoteSwapAtCheckpoint(key, params);
+            assertEq(quote1, quote2, "repeated quotes must be deterministic and non-mutating");
+        }
     }
 
     function test_swap_zeroForOne_FrontrunExactInput_BackrunExactInput() public {

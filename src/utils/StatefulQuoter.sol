@@ -8,14 +8,13 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 
 /**
- * @dev Utility contract for mutation-safe pool state quotes.
+ * @dev Utility contract for on-chain mutation-safe quotes at arbitrary pool states.
  *
- * `quoteAtPoolState` executes `Pool.swap` in a self-call and then intentionally reverts with encoded quote data.
  * The revert rolls back all writes produced during quote execution, preserving the quoted state unchanged.
  *
  * NOTE: Inheriting contracts must provide pool state lookup through {_getPoolStateForQuote}.
  */
-abstract contract Quoter {
+abstract contract StatefulQuoter {
     /// @dev Reverted by quote execution to return the quoted swap delta.
     error QuoteSwapAtPoolState(BalanceDelta swapDelta);
 
@@ -32,12 +31,8 @@ abstract contract Quoter {
     }
 
     /**
-     * @dev Quotes a swap at the given stored pool state without persisting intermediate mutations.
-     *
-     * WARNING: This function is non-view on purpose because it invokes `Pool.swap`, but all writes are reverted.
-     *
-     * @param poolId The id used by inheritors to resolve the quoted pool state.
-     * @param swapParams The swap configuration used for simulation.
+     * @dev Quotes a swap at the given stored pool state defined by {_getPoolStateForQuote}
+     * without persisting intermediate mutations.
      */
     function _quoteSwapAtPoolState(PoolId poolId, Pool.SwapParams memory swapParams)
         internal
@@ -52,8 +47,6 @@ abstract contract Quoter {
 
     /**
      * @dev Parses quote payloads and bubbles non-quote reverts.
-     *
-     * The expected payload is the ABI encoding of `QuoteSwapAtPoolState(BalanceDelta)`.
      */
     function _parseQuoteSwapAtPoolState(bytes memory reason) internal pure returns (BalanceDelta swapDelta) {
         if (reason.length == 0) revert UnexpectedQuoteSuccess();
@@ -76,7 +69,8 @@ abstract contract Quoter {
     }
 
     /**
-     * @dev Executes `Pool.swap` against the selected state and reverts with encoded quote.
+     * @dev Executes `Pool.swap` against the pool state defined by {_getPoolStateForQuote}
+     * and reverts with encoded quote.
      */
     function quoteSwapAtPoolState(PoolId poolId, Pool.SwapParams calldata params) external selfOnly {
         (BalanceDelta swapDelta,,,) = Pool.swap(_getPoolStateForQuote(poolId), params);
@@ -84,7 +78,7 @@ abstract contract Quoter {
     }
 
     /**
-     * @dev Resolves the storage pool state to be used during quote simulation.
+     * @dev Determines the storage pool state to be used during quote simulation.
      */
     function _getPoolStateForQuote(PoolId poolId) internal virtual returns (Pool.State storage);
 }

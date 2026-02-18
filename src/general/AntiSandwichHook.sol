@@ -19,7 +19,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Internal imports
 import {BaseDynamicAfterFee} from "../fee/BaseDynamicAfterFee.sol";
 import {CurrencySettler} from "../utils/CurrencySettler.sol";
-import {Quoter} from "../utils/Quoter.sol";
+import {StatefulQuoter} from "../utils/StatefulQuoter.sol";
 
 /**
  * @dev This hook implements the sandwich-resistant AMM design introduced
@@ -52,7 +52,7 @@ import {Quoter} from "../utils/Quoter.sol";
  *
  * _Available since v1.1.0_
  */
-abstract contract AntiSandwichHook is BaseDynamicAfterFee, Quoter {
+abstract contract AntiSandwichHook is BaseDynamicAfterFee, StatefulQuoter {
     using Pool for *;
     using StateLibrary for IPoolManager;
     using CurrencySettler for Currency;
