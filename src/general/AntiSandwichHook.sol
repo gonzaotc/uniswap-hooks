@@ -19,6 +19,7 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Internal imports
 import {BaseDynamicAfterFee} from "../fee/BaseDynamicAfterFee.sol";
 import {CurrencySettler} from "../utils/CurrencySettler.sol";
+import {Quoter} from "../utils/Quoter.sol";
 
 /**
  * @dev This hook implements the sandwich-resistant AMM design introduced
@@ -51,7 +52,7 @@ import {CurrencySettler} from "../utils/CurrencySettler.sol";
  *
  * _Available since v1.1.0_
  */
-abstract contract AntiSandwichHook is BaseDynamicAfterFee {
+abstract contract AntiSandwichHook is BaseDynamicAfterFee, Quoter {
     using Pool for *;
     using StateLibrary for IPoolManager;
     using CurrencySettler for Currency;
@@ -65,6 +66,23 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
 
     /// @dev Maps each pool to its last checkpoint.
     mapping(PoolId id => Checkpoint checkpoint) private _lastCheckpoints;
+
+    /**
+     * @dev Stores the initial `slot0` as the first checkpoint baseline for the pool.
+     *
+     * NOTE: Initializing this value avoids a default `lastTick == 0` baseline on the first call to {_updateCheckpoint},
+     * which would otherwise expand the first tick-copy loop from zero instead of from the pool's initial tick.
+     */
+    function _afterInitialize(address, PoolKey calldata key, uint160, int24)
+        internal
+        virtual
+        override
+        returns (bytes4)
+    {
+        _lastCheckpoints[key.toId()].state.slot0 =
+            Slot0.wrap(poolManager.extsload(StateLibrary._getPoolStateSlot(key.toId())));
+        return this.afterInitialize.selector;
+    }
 
     /**
      * @dev Handles the before swap hook.
@@ -81,45 +99,68 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         PoolId poolId = key.toId();
-        IPoolManager manager = poolManager;
-        Checkpoint storage _lastCheckpoint = _lastCheckpoints[poolId];
+        Checkpoint storage lastCheckpoint = _lastCheckpoints[poolId];
 
+        // update the checkpoint before the swap if it's a new block
         uint48 currentBlock = _getBlockNumber();
-
-        // update the top-of-block `slot0` if new block
-        if (_lastCheckpoint.blockNumber != currentBlock) {
-            int24 lastTick = _lastCheckpoint.state.slot0.tick();
-            _lastCheckpoint.state.slot0 = Slot0.wrap(manager.extsload(StateLibrary._getPoolStateSlot(poolId)));
-            _lastCheckpoint.blockNumber = currentBlock;
-
-            // iterate over ticks
-            (, int24 currentTick,,) = manager.getSlot0(poolId);
-            if (currentTick < lastTick) {
-                for (int24 tick = currentTick; tick <= lastTick; tick += key.tickSpacing) {
-                    (
-                        _lastCheckpoint.state.ticks[tick].liquidityGross,
-                        _lastCheckpoint.state.ticks[tick].liquidityNet,
-                        _lastCheckpoint.state.ticks[tick].feeGrowthOutside0X128,
-                        _lastCheckpoint.state.ticks[tick].feeGrowthOutside1X128
-                    ) = manager.getTickInfo(poolId, tick);
-                }
-            } else {
-                for (int24 tick = currentTick; tick >= lastTick; tick -= key.tickSpacing) {
-                    (
-                        _lastCheckpoint.state.ticks[tick].liquidityGross,
-                        _lastCheckpoint.state.ticks[tick].liquidityNet,
-                        _lastCheckpoint.state.ticks[tick].feeGrowthOutside0X128,
-                        _lastCheckpoint.state.ticks[tick].feeGrowthOutside1X128
-                    ) = manager.getTickInfo(poolId, tick);
-                }
-            }
-
-            (_lastCheckpoint.state.feeGrowthGlobal0X128, _lastCheckpoint.state.feeGrowthGlobal1X128) =
-                manager.getFeeGrowthGlobals(poolId);
-            _lastCheckpoint.state.liquidity = manager.getLiquidity(poolId);
+        if (lastCheckpoint.blockNumber != currentBlock) {
+            _updateCheckpoint(poolId, key, lastCheckpoint, currentBlock);
         }
 
         return super._beforeSwap(sender, key, params, hookData);
+    }
+
+    /*
+     * Update the storage copy of the `Pool.State`
+    */
+    function _updateCheckpoint(PoolId poolId, PoolKey calldata key, Checkpoint storage checkpoint, uint48 currentBlock)
+        internal
+    {
+        IPoolManager manager = poolManager;
+
+        // update the block number
+        checkpoint.blockNumber = currentBlock;
+
+        // update the state fee growth globals
+        // (checkpoint.state.feeGrowthGlobal0X128, checkpoint.state.feeGrowthGlobal1X128) =
+        //     manager.getFeeGrowthGlobals(poolId);
+
+        // update the state positions
+        // mapping(bytes32 positionKey => Position.State) positions;
+
+        // update the state liquidity
+        checkpoint.state.liquidity = manager.getLiquidity(poolId);
+
+        // iterate over ticks to update the state
+        int24 lastTick = checkpoint.state.slot0.tick();
+        (, int24 currentTick,,) = manager.getSlot0(poolId);
+        if (currentTick < lastTick) {
+            for (int24 tick = currentTick; tick <= lastTick; tick += key.tickSpacing) {
+                // checkpoint.state.ticks[tick].liquidityGross,,,,
+                (
+                    ,
+                    checkpoint.state.ticks[tick].liquidityNet,,
+                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128,
+                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128
+                ) = manager.getTickInfo(poolId, tick);
+            }
+        } else {
+            for (int24 tick = currentTick; tick >= lastTick; tick -= key.tickSpacing) {
+                // checkpoint.state.ticks[tick].liquidityGross,,,,
+                (
+                    ,
+                    checkpoint.state.ticks[tick].liquidityNet,,
+                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128,
+                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128
+                ) = manager.getTickInfo(poolId, tick);
+            }
+        }
+
+        // @TBD Note: we are not updating
+        // mapping(int16 wordPos => uint256) tickBitmap;
+
+        // update the slot0
+        checkpoint.state.slot0 = Slot0.wrap(manager.extsload(StateLibrary._getPoolStateSlot(poolId)));
     }
 
     /**
@@ -154,12 +195,9 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
             return (type(uint256).max, false);
         }
 
-        Checkpoint storage _lastCheckpoint = _lastCheckpoints[key.toId()];
-
-        // Simulate the swap to get the swap delta
-        // NOTE: this functions does not execute the swap, it only calculates the output of a swap in the given state
-        (BalanceDelta swapDelta,,,) = Pool.swap(
-            _lastCheckpoint.state,
+        // Quote the swapDelta at the pool state determined by {_getPoolStateForQuote}
+        BalanceDelta swapDelta = quoteSwapAtPoolState(
+            key.toId(),
             Pool.SwapParams({
                 tickSpacing: key.tickSpacing,
                 zeroForOne: params.zeroForOne,
@@ -180,6 +218,13 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
     }
 
     /**
+     * @dev Resolves the checkpoint state used by inherited quote simulation.
+     */
+    function _getPoolStateForQuote(PoolId poolId) internal view override returns (Pool.State storage) {
+        return _lastCheckpoints[poolId].state;
+    }
+
+    /**
      * @dev Set the hook permissions, specifically `beforeSwap`, `afterSwap`, and `afterSwapReturnDelta`.
      *
      * @return permissions The hook permissions.
@@ -187,7 +232,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee {
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
         return Hooks.Permissions({
             beforeInitialize: false,
-            afterInitialize: false,
+            afterInitialize: true,
             beforeAddLiquidity: false,
             afterAddLiquidity: false,
             beforeRemoveLiquidity: false,

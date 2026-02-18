@@ -7,6 +7,9 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {Pool} from "@uniswap/v4-core/src/libraries/Pool.sol";
+import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
+import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 // Internal imports
 import {AntiSandwichHook} from "../../general/AntiSandwichHook.sol";
 import {CurrencySettler} from "../../utils/CurrencySettler.sol";
@@ -14,6 +17,14 @@ import {BaseHook} from "../../base/BaseHook.sol";
 
 contract AntiSandwichMock is AntiSandwichHook {
     using CurrencySettler for Currency;
+    using StateLibrary for IPoolManager;
+
+    struct AccumulatedFees {
+        uint256 amount0;
+        uint256 amount1;
+    }
+
+    mapping(PoolId poolId => AccumulatedFees accumulatedFees) private _accumulatedFees;
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
 
@@ -35,14 +46,50 @@ contract AntiSandwichMock is AntiSandwichHook {
         uint256,
         uint256 feeAmount
     ) internal override {
-        Currency unspecified = (params.amountSpecified < 0 == params.zeroForOne) ? (key.currency1) : (key.currency0);
-        (uint256 amount0, uint256 amount1) = unspecified == key.currency0
-            ? (uint256(uint128(feeAmount)), uint256(0))
-            : (uint256(0), uint256(uint128(feeAmount)));
+        PoolId poolId = key.toId();
 
-        // settle and donate execess tokens to the pool
-        poolManager.donate(key, amount0, amount1, "");
-        unspecified.settle(poolManager, address(this), feeAmount, true);
+        bool feeIsCurrency0 = (params.amountSpecified < 0 == params.zeroForOne);
+
+        AccumulatedFees storage accumulatedFees = _accumulatedFees[poolId];
+
+        // Donate only if there is in-range liquidity to receive donations, accumulate otherwise.
+        if (poolManager.getLiquidity(poolId) != 0) {
+            uint256 fees0;
+            uint256 fees1;
+            if (feeIsCurrency0) {
+                fees0 = feeAmount + accumulatedFees.amount0;
+                fees1 = accumulatedFees.amount1;
+            } else {
+                fees0 = accumulatedFees.amount0;
+                fees1 = feeAmount + accumulatedFees.amount1;
+            }
+
+            poolManager.donate(key, fees0, fees1, "");
+            if (fees0 > 0) key.currency0.settle(poolManager, address(this), fees0, true);
+            if (fees1 > 0) key.currency1.settle(poolManager, address(this), fees1, true);
+
+            accumulatedFees.amount0 = 0;
+            accumulatedFees.amount1 = 0;
+        } else {
+            accumulatedFees.amount0 += feeAmount;
+            accumulatedFees.amount1 += feeAmount;
+        }
+    }
+
+    /**
+     * @dev Exposes checkpoint quoting for tests.
+     */
+    function quoteSwapAtCheckpoint(PoolKey calldata key, SwapParams calldata params) external returns (BalanceDelta) {
+        return quoteSwapAtPoolState(
+            key.toId(),
+            Pool.SwapParams({
+                tickSpacing: key.tickSpacing,
+                zeroForOne: params.zeroForOne,
+                amountSpecified: params.amountSpecified,
+                sqrtPriceLimitX96: params.sqrtPriceLimitX96,
+                lpFeeOverride: 0
+            })
+        );
     }
 
     // Exclude from coverage report

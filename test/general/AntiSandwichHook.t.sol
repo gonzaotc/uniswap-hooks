@@ -7,6 +7,8 @@ import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
+import {SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 // Internal imports
 import {HookTest} from "../utils/HookTest.sol";
 import {BalanceDeltaAssertions} from "../utils/BalanceDeltaAssertions.sol";
@@ -25,7 +27,12 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         deployMintAndApprove2Currencies();
 
         hook = AntiSandwichMock(
-            address(uint160(Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG))
+            address(
+                uint160(
+                    Hooks.AFTER_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
+                        | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+                )
+            )
         );
         deployCodeTo(
             "src/mocks/general/AntiSandwichMock.sol:AntiSandwichMock", abi.encode(address(manager)), address(hook)
@@ -50,6 +57,26 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         assertEq(swapDelta, toBalanceDelta(-SWAP_AMOUNT_1E15, SWAP_RESULT_1E15));
     }
 
+    /// @notice Regression test to ensure quote simulation does not mutate checkpoint state.
+    function test_quoteSwapAtCheckpoint_isStableAcrossCalls(int256 swapAmount, bool zeroForOne) public {
+        swapAmount = bound(swapAmount, -1e16, 1e16);
+        vm.assume(swapAmount != 0);
+
+        // Seed checkpoint for this block.
+        swap(key, zeroForOne, swapAmount, ZERO_BYTES);
+
+        SwapParams memory params = SwapParams({
+            zeroForOne: zeroForOne,
+            amountSpecified: swapAmount,
+            sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+        });
+
+        BalanceDelta quote1 = hook.quoteSwapAtCheckpoint(key, params);
+        BalanceDelta quote2 = hook.quoteSwapAtCheckpoint(key, params);
+
+        assertEq(quote1, quote2, "repeated quotes must be deterministic and non-mutating");
+    }
+
     function test_swap_zeroForOne_FrontrunExactInput_BackrunExactInput() public {
         // front run, exactInput
         // - sends token0 (SWAP_AMOUNT)
@@ -71,7 +98,7 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
         // back run, exactInput
         // - sends token1 (amount received in front run)
         // - receives token0 (unknown amount)
-        // To make a profit, the ataccker must receive more token0 than he sent in the frontrun.
+        // To make a profit, the atacker must receive more token0 than he sent in the frontrun.
         BalanceDelta deltaAttack2WithKey = swap(key, false, -int256(deltaAttack1WithKey.amount1()), ZERO_BYTES);
         BalanceDelta deltaAttack2WithoutKey = swap(noHookKey, false, -int256(deltaAttack1WithKey.amount1()), ZERO_BYTES);
 
