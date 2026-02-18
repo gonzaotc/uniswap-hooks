@@ -28,6 +28,23 @@ contract AntiSandwichMock is AntiSandwichHook {
 
     constructor(IPoolManager _poolManager) BaseHook(_poolManager) {}
 
+    // function _afterSwapHandler(
+    //     PoolKey calldata key,
+    //     SwapParams calldata params,
+    //     BalanceDelta,
+    //     uint256,
+    //     uint256 feeAmount
+    // ) internal override {
+    //     Currency unspecified = (params.amountSpecified < 0 == params.zeroForOne) ? (key.currency1) : (key.currency0);
+    //     (uint256 amount0, uint256 amount1) = unspecified == key.currency0
+    //         ? (uint256(uint128(feeAmount)), uint256(0))
+    //         : (uint256(0), uint256(uint128(feeAmount)));
+
+    //     // settle and donate execess tokens to the pool
+    //     poolManager.donate(key, amount0, amount1, "");
+    //     unspecified.settle(poolManager, address(this), feeAmount, true);
+    // }
+
     /**
      * @dev Handles the excess tokens collected during the swap due to the anti-sandwich mechanism.
      * When a swap executes at a worse price than what's currently available in the pool (due to
@@ -48,31 +65,32 @@ contract AntiSandwichMock is AntiSandwichHook {
     ) internal override {
         PoolId poolId = key.toId();
 
-        bool feeIsCurrency0 = (params.amountSpecified < 0 == params.zeroForOne);
+        bool feeIsCurrency0 = !(params.amountSpecified < 0 == params.zeroForOne);
 
         AccumulatedFees storage accumulatedFees = _accumulatedFees[poolId];
 
         // Donate only if there is in-range liquidity to receive donations, accumulate otherwise.
         if (poolManager.getLiquidity(poolId) != 0) {
-            uint256 fees0;
-            uint256 fees1;
+            uint256 fees0 = accumulatedFees.amount0;
+            uint256 fees1 = accumulatedFees.amount1;
             if (feeIsCurrency0) {
-                fees0 = feeAmount + accumulatedFees.amount0;
-                fees1 = accumulatedFees.amount1;
+                fees0 += feeAmount;
             } else {
-                fees0 = accumulatedFees.amount0;
-                fees1 = feeAmount + accumulatedFees.amount1;
+                fees1 += feeAmount;
             }
 
             poolManager.donate(key, fees0, fees1, "");
-            if (fees0 > 0) key.currency0.settle(poolManager, address(this), fees0, true);
-            if (fees1 > 0) key.currency1.settle(poolManager, address(this), fees1, true);
+            key.currency0.settle(poolManager, address(this), fees0, true);
+            key.currency1.settle(poolManager, address(this), fees1, true);
 
             accumulatedFees.amount0 = 0;
             accumulatedFees.amount1 = 0;
         } else {
-            accumulatedFees.amount0 += feeAmount;
-            accumulatedFees.amount1 += feeAmount;
+            if (feeIsCurrency0) {
+                accumulatedFees.amount0 += feeAmount;
+            } else {
+                accumulatedFees.amount1 += feeAmount;
+            }
         }
     }
 
@@ -80,7 +98,7 @@ contract AntiSandwichMock is AntiSandwichHook {
      * @dev Exposes checkpoint quoting for tests.
      */
     function quoteSwapAtCheckpoint(PoolKey calldata key, SwapParams calldata params) external returns (BalanceDelta) {
-        return quoteSwapAtPoolState(
+        return _quoteSwapAtPoolState(
             key.toId(),
             Pool.SwapParams({
                 tickSpacing: key.tickSpacing,

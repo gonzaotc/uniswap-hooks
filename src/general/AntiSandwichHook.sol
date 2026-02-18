@@ -196,7 +196,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee, Quoter {
         }
 
         // Quote the swapDelta at the pool state determined by {_getPoolStateForQuote}
-        BalanceDelta swapDelta = quoteSwapAtPoolState(
+        BalanceDelta swapDelta = _quoteSwapAtPoolState(
             key.toId(),
             Pool.SwapParams({
                 tickSpacing: key.tickSpacing,
