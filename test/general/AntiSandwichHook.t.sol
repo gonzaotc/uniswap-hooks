@@ -13,6 +13,7 @@ import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {HookTest} from "../utils/HookTest.sol";
 import {BalanceDeltaAssertions} from "../utils/BalanceDeltaAssertions.sol";
 import {AntiSandwichMock} from "../../src/mocks/general/AntiSandwichMock.sol";
+import {console} from "forge-std/console.sol";
 
 contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
     AntiSandwichMock hook;
@@ -78,6 +79,42 @@ contract AntiSandwichHookTest is HookTest, BalanceDeltaAssertions {
             BalanceDelta quote2 = hook.quoteSwapAtCheckpoint(key, params);
             assertEq(quote1, quote2, "repeated quotes must be deterministic and non-mutating");
         }
+    }
+
+    /// @notice Regression test: checkpoint quote must match a real swap from the same beginning-of-block state.
+    function test_quoteSwapAtCheckpoint_matchesBeginningOfBlockSwap_whenCrossingTicks() public {
+        // Force checkpoint refresh on `key` with a dust swap; quote must still use the pre-swap state.
+        swap(key, true, -1, ZERO_BYTES);
+
+        // advance the block
+        vm.roll(block.number + 1);
+
+        SwapParams memory params = SwapParams({
+            zeroForOne: false,
+            amountSpecified: -2e17,
+            sqrtPriceLimitX96: TickMath.MAX_SQRT_PRICE - 1
+        });
+
+        // Quote from the checkpoint on the hooked pool.
+        console.log("quoting");
+        BalanceDelta checkpointQuote = hook.quoteSwapAtCheckpoint(key, params);
+        BalanceDelta checkpointQuot2 = hook.quoteSwapAtCheckpoint(key, params);
+        assertEq(checkpointQuote, checkpointQuot2, "repeated quotes must be deterministic and non-mutating");
+
+        console.log("checkpointQuote amount0", checkpointQuote.amount0());
+        console.log("checkpointQuote amount1", checkpointQuote.amount1());
+
+        // Execute the same swap on the untouched control pool that still sits at the same beginning-of-block state.
+        console.log("swapping");
+        BalanceDelta controlDelta = swap(key, params.zeroForOne, params.amountSpecified, ZERO_BYTES);
+        console.log("controlDelta amount0", controlDelta.amount0());
+        console.log("controlDelta amount1", controlDelta.amount1());
+
+        assertEq(
+            checkpointQuote,
+            controlDelta,
+            "checkpoint quote must equal execution from an identical beginning-of-block state"
+        );
     }
 
     function test_swap_zeroForOne_FrontrunExactInput_BackrunExactInput() public {

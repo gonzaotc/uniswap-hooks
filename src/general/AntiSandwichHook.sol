@@ -121,11 +121,11 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee, StatefulQuoter {
         // update the block number
         checkpoint.blockNumber = currentBlock;
 
-        // update the state fee growth globals
+        // update the state fee growth globals (unnecessary)
         // (checkpoint.state.feeGrowthGlobal0X128, checkpoint.state.feeGrowthGlobal1X128) =
         //     manager.getFeeGrowthGlobals(poolId);
 
-        // update the state positions
+        // update the state positions (unnecessary)
         // mapping(bytes32 positionKey => Position.State) positions;
 
         // update the state liquidity
@@ -136,27 +136,27 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee, StatefulQuoter {
         (, int24 currentTick,,) = manager.getSlot0(poolId);
         if (currentTick < lastTick) {
             for (int24 tick = currentTick; tick <= lastTick; tick += key.tickSpacing) {
-                // checkpoint.state.ticks[tick].liquidityGross,,,,
+                // checkpoint.state.ticks[tick].liquidityGross,,,, (unnecessary)
                 (
                     ,
                     checkpoint.state.ticks[tick].liquidityNet,,
-                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128,
-                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128
+                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128, (unnecessary)
+                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128 (unnecessary)
                 ) = manager.getTickInfo(poolId, tick);
             }
         } else {
             for (int24 tick = currentTick; tick >= lastTick; tick -= key.tickSpacing) {
-                // checkpoint.state.ticks[tick].liquidityGross,,,,
+                // checkpoint.state.ticks[tick].liquidityGross,,,, (unnecessary)
                 (
                     ,
                     checkpoint.state.ticks[tick].liquidityNet,,
-                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128,
-                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128
+                    // checkpoint.state.ticks[tick].feeGrowthOutside0X128, (unnecessary)
+                    // checkpoint.state.ticks[tick].feeGrowthOutside1X128 (unnecessary)
                 ) = manager.getTickInfo(poolId, tick);
             }
         }
 
-        // @TBD Note: we are not updating
+        // @TBD Note: we are not updating the tickBitmap.
         // mapping(int16 wordPos => uint256) tickBitmap;
 
         // update the slot0
@@ -214,6 +214,7 @@ abstract contract AntiSandwichHook is BaseDynamicAfterFee, StatefulQuoter {
         if (target < 0) target = -target;
 
         targetUnspecifiedAmount = target.toUint256();
+
         applyTarget = true;
     }
 
