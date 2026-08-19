@@ -14,6 +14,7 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {CustomRevert} from "@uniswap/v4-core/src/libraries/CustomRevert.sol";
+import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 // Internal imports
 import {
     ReHypothecationERC4626Mock,
@@ -49,7 +50,12 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
         yieldSource1 = IERC4626(new ERC4626YieldSourceMock(IERC20(Currency.unwrap(currency1))));
 
         hook = ReHypothecationERC4626Mock(
-            payable(address(uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG)))
+            payable(address(
+                    uint160(
+                        Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+                            | Hooks.AFTER_SWAP_FLAG
+                    )
+                ))
         );
         deployCodeTo(
             "src/mocks/general/ReHypothecationERC4626Mock.sol:ReHypothecationERC4626Mock",
@@ -59,6 +65,12 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
 
         (key,) = initPool(currency0, currency1, IHooks(address(hook)), fee, SQRT_PRICE_1_1);
         (noHookKey,) = initPool(currency0, currency1, IHooks(address(0)), fee, SQRT_PRICE_1_1);
+
+        // Full range, matching the class-level docs: "a single hook-owned liquidity position ...
+        // defaulting to a UniswapV2 like full-range position." Without this, `getTickLower`/
+        // `getTickUpper` stay at their unset default of 0, making the position a zero-width range
+        // that can never take a nonzero deposit for any mint.
+        hook.setTickRange(TickMath.minUsableTick(key.tickSpacing), TickMath.maxUsableTick(key.tickSpacing));
 
         vm.label(Currency.unwrap(currency0), "currency0");
         vm.label(Currency.unwrap(currency1), "currency1");
@@ -127,7 +139,10 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
     // -- ADDING -- //
 
     function test_add_uninitialized_reverts() public {
-        uint160 hookFlags = uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG);
+        uint160 hookFlags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG
+        );
         ReHypothecationERC4626Mock newHook = ReHypothecationERC4626Mock(
             payable(address(hookFlags + 0x10000000000000000000000000000000)) // generate a different address
         );
@@ -284,7 +299,10 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
     // -- REMOVING -- //
 
     function test_remove_uninitialized_reverts() public {
-        uint160 hookFlags = uint160(Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG);
+        uint160 hookFlags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG
+        );
         ReHypothecationERC4626Mock newHook = ReHypothecationERC4626Mock(
             payable(address(hookFlags + 0x10000000000000000000000000000000)) // generate a different address
         );

@@ -33,8 +33,17 @@ contract ReHypothecationERC4626Mock is ReHypothecationHook {
     /// @dev Error thrown when attempting to use an invalid yield source.
     error InvalidYieldSource();
 
+    /// @dev Error thrown when attempting to use an invalid tick range.
+    error InvalidTickRange();
+
+    /// @dev Error thrown when attempting to set a tick range that has already been set.
+    error TickRangeAlreadySet();
+
     address private immutable yieldSource0;
     address private immutable yieldSource1;
+
+    int24 private _tickLower;
+    int24 private _tickUpper;
 
     constructor(IPoolManager _poolManager, address yieldSource0_, address yieldSource1_)
         BaseHook(_poolManager)
@@ -92,6 +101,8 @@ contract ReHypothecationERC4626Mock is ReHypothecationHook {
         revert UnsupportedCurrency();
     }
 
+    // ------------------ TESTING FUNCTIONS ------------------ //
+
     /// @dev Exposed internal function for testing
     function getAmountInYieldSource(Currency currency) public view returns (uint256) {
         return _getAmountInYieldSource(currency);
@@ -102,6 +113,24 @@ contract ReHypothecationERC4626Mock is ReHypothecationHook {
         IERC4626 yieldSource = IERC4626(getCurrencyYieldSource(currency));
         if (address(yieldSource) == address(0)) revert UnsupportedCurrency();
         return yieldSource.withdraw(amount, address(0), address(this));
+    }
+
+    // @dev Override to customize the tick lower boundary for testing
+    function getTickLower() public view override returns (int24) {
+        return _tickLower;
+    }
+
+    // @dev Override to customize the tick upper boundary for testing
+    function getTickUpper() public view override returns (int24) {
+        return _tickUpper;
+    }
+
+    // @dev Set the tick range once at run-time for testing.
+    function setTickRange(int24 tickLower_, int24 tickUpper_) public {
+        if (_tickLower != 0 || _tickUpper != 0) revert TickRangeAlreadySet();
+        if (tickLower_ >= tickUpper_) revert InvalidTickRange();
+        _tickLower = tickLower_;
+        _tickUpper = tickUpper_;
     }
 
     // Exclude from coverage report
