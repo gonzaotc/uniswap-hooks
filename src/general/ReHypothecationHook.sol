@@ -19,12 +19,16 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SwapParams, ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
-import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
+import {
+    BeforeSwapDelta,
+    BeforeSwapDeltaLibrary,
+    toBeforeSwapDelta
+} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
-import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
 // Internal imports
 import {BaseHook} from "../base/BaseHook.sol";
 import {CurrencySettler} from "../utils/CurrencySettler.sol";
+import {LiquidityAmounts} from "../utils/LiquidityAmounts.sol";
 
 /**
  * @dev A Uniswap V4 hook that enables liquidity rehypothecation into external yield sources.
@@ -40,8 +44,14 @@ import {CurrencySettler} from "../utils/CurrencySettler.sol";
  * - the underlying relationship between yield sources deposits and the pool's liquidity.
  *
  * Since the hook must own the liquidity positions in both the external yield sources and the pool in order to transfer it
- * between the two, a single hook-owned liquidity position is shared between all the liquidity providers, defaulting to a
- * UniswapV2 like full-range position.
+ * between the two, a single hook-owned liquidity position is shared between all the liquidity providers.
+ * The JIT hook position tick boundaries (`getTickLower()`/`getTickUpper()`) default to a UniswapV2-like full range position,
+ * although they can be overridden to implement more sophisticated JIT placement strategies.
+ *
+ * NOTE: Normal, non-rehypothecated liquidity additions are disabled by default (see {_beforeAddLiquidity}), since a
+ * third party could otherwise saturate the hook's boundary tick's `liquidityGross` and make the JIT add revert with
+ * `TickLiquidityOverflow`, DoSing the pool. Consider overriding {_beforeAddLiquidity} to support normal liquidity
+ * additions only if you separately protect the hook's boundary ticks from saturation.
  *
  * NOTE: Since the hook owns the single liquidity position, liquidity must be added and removed in the same ratio as the
  * balances in the yield sources.
@@ -74,6 +84,12 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    /**
+     * @dev Units of each currency that one just-in-time provision costs the hook, since Uniswap v4 rounds against
+     * the position and floors the fee it credits. Default value of {getJITFees}.
+     */
+    uint256 public constant JIT_ROUNDING_COST = 4;
+
     /// @dev The pool key for the hook. Note that the hook supports only one pool key.
     PoolKey private _poolKey;
 
@@ -91,6 +107,9 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
 
     /// @dev Error thrown when the refund fails.
     error RefundFailed();
+
+    /// @dev Error thrown when a third party tries to add liquidity; only the hook's own JIT add is allowed.
+    error NormalLiquidityAdditionDisabled();
 
     /**
      * @dev Emitted when a `sender` adds rehypothecated `shares` to the `poolKey` pool,
@@ -119,6 +138,10 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
      * @dev Initialize the hook's `poolKey` pool. The key stored by the hook is unique and
      * should not be modified so that it can safely be used across the hook's lifecycle.
      * Note that the hook supports only one pool key.
+     *
+     * Requirements:
+     *
+     * - the pool must not already be initialized.
      */
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4) {
         if (address(_poolKey.hooks) != address(0)) revert AlreadyInitialized();
@@ -198,10 +221,34 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     }
 
     /**
+     * @dev Rejects external liquidity additions. Use {addReHypothecatedLiquidity} instead.
+     *
+     * External liquidity can deliberately saturate the hook's boundary ticks, making the JIT addition in
+     * {_beforeSwap} fail with `TickLiquidityOverflow` and leaving swaps without liquidity.
+     *
+     * NOTE: Override to support normal liquidity additions, which requires protecting the hook's boundary ticks
+     * from saturation separately.
+     */
+    function _beforeAddLiquidity(
+        address, /* sender */
+        PoolKey calldata, /* key */
+        ModifyLiquidityParams calldata, /* params */
+        bytes calldata /* hookData */
+    )
+        internal
+        virtual
+        override
+        returns (bytes4)
+    {
+        revert NormalLiquidityAdditionDisabled();
+    }
+
+    /**
      * @dev Hook executed before a swap operation to provide liquidity from rehypothecated assets.
      *
      * Gets the amount of liquidity to be provided from yield sources and temporarily adds it to the pool,
-     * in a Just-in-Time provision of liquidity.
+     * in a Just-in-Time provision of liquidity. When the addition lands, charges the swap {getJITFees} for
+     * the liquidity it receives, which {_afterSwap} collects.
      *
      * Note that at this point there are no actual transfers of tokens happening to the pool, instead,
      * thanks to the Flash Accounting model, this addition creates a currencyDelta to the hook, which
@@ -210,7 +257,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     function _beforeSwap(
         address, /* sender */
         PoolKey calldata, /* key */
-        SwapParams calldata, /* params */
+        SwapParams calldata params,
         bytes calldata /* hookData */
     )
         internal
@@ -218,9 +265,18 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
         override
         returns (bytes4, BeforeSwapDelta, uint24)
     {
-        // Get the liquidity to be used from the amounts currently deposited in the yield sources
         uint256 liquidityToUse = _getLiquidityToUse();
-        if (liquidityToUse > 0) _modifyLiquidity(liquidityToUse.toInt256());
+        if (liquidityToUse > 0 && _tryAddLiquidity(liquidityToUse)) {
+            (uint256 fee0, uint256 fee1) = getJITFees();
+            (uint256 specified, uint256 unspecified) =
+                (params.amountSpecified < 0 == params.zeroForOne) ? (fee0, fee1) : (fee1, fee0);
+
+            return (
+                this.beforeSwap.selector,
+                toBeforeSwapDelta(specified.toInt256().toInt128(), unspecified.toInt256().toInt128()),
+                0
+            );
+        }
 
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
@@ -228,8 +284,9 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     /**
      * @dev Hook executed after a swap operation to remove temporary liquidity and rebalance assets.
      *
-     * Removes the liquidity that was temporarily added in `_beforeSwap`, and resolves the hook's
-     * deltas in each currency in order to neutralize any pending debits or credits.
+     * Removes the liquidity that was temporarily added in `_beforeSwap`, resolves the hook's
+     * deltas in each currency in order to neutralize any pending debits or credits, and collects the
+     * {getJITFees} that `_beforeSwap` reported for the liquidity it provided.
      */
     function _afterSwap(
         address, /* sender */
@@ -246,14 +303,90 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
         // Remove all of the hook owned liquidity from the pool
         uint128 liquidity = _getHookPositionLiquidity();
         if (liquidity > 0) {
-            _modifyLiquidity(-liquidity.toInt256());
+            _removeLiquidity(liquidity);
 
             // Take or settle any pending deltas with the PoolManager
             _resolveHookDelta(key.currency0);
             _resolveHookDelta(key.currency1);
+
+            // Collect the fees `_beforeSwap` charged the swap for the liquidity provided to it
+            (uint256 fee0, uint256 fee1) = getJITFees();
+            _collectJITFee(key.currency0, fee0);
+            _collectJITFee(key.currency1, fee1);
         }
 
         return (this.afterSwap.selector, 0);
+    }
+
+    /**
+     * @dev Attempts to add `liquidityToUse` to the hook's position, and returns whether it landed. Since JIT is
+     * attempted in every swap, failing the liquidity addition can DDoS the pool. {_beforeSwap} charges
+     * {getJITFees} only when it lands, so a swap is never charged for liquidity it did not receive.
+     */
+    function _tryAddLiquidity(uint256 liquidityToUse) internal virtual returns (bool added) {
+        try poolManager.modifyLiquidity(
+            _poolKey,
+            ModifyLiquidityParams({
+                tickLower: getTickLower(),
+                tickUpper: getTickUpper(),
+                liquidityDelta: liquidityToUse.toInt256(),
+                salt: bytes32(0)
+            }),
+            ""
+        ) returns (
+            BalanceDelta, BalanceDelta
+        ) {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Removes `liquidityToRemove` from the hook's position.
+     */
+    function _removeLiquidity(uint256 liquidityToRemove) internal virtual {
+        poolManager.modifyLiquidity(
+            _poolKey,
+            ModifyLiquidityParams({
+                tickLower: getTickLower(),
+                tickUpper: getTickUpper(),
+                liquidityDelta: -liquidityToRemove.toInt256(),
+                salt: bytes32(0)
+            }),
+            ""
+        );
+    }
+
+    /**
+     * @dev Returns the fees in `currency0` and `currency1` that a swap pays for the just-in-time liquidity it
+     * receives. A swap that receives none pays nothing.
+     *
+     * Defaults to {JIT_ROUNDING_COST} of each, so that a swap too small to generate LP fees is not served at a
+     * loss. Override to charge for the liquidity itself.
+     *
+     * IMPORTANT: Must return the same amounts throughout a swap. {_beforeSwap} reports them and {_afterSwap}
+     * collects them, and a mismatch reverts with `CurrencyNotSettled`.
+     *
+     * NOTE: An exact input swap smaller than the fee on its specified currency reverts with
+     * `HookDeltaExceedsSwapAmount`.
+     */
+    function getJITFees() public view virtual returns (uint256 fee0, uint256 fee1) {
+        return (JIT_ROUNDING_COST, JIT_ROUNDING_COST);
+    }
+
+    /**
+     * @dev Takes `fee` of `currency` from the poolManager and deposits it into the yield source, where it
+     * accrues to the liquidity providers that funded the position.
+     *
+     * The `PoolManager` credits a hook's returned delta only once `afterSwap` has returned, so the fee that
+     * {_beforeSwap} reported is not part of `currencyDelta` here and {_resolveHookDelta} cannot settle it. This
+     * take leaves the debit that the later credit cancels, and moves the tokens the deposit needs.
+     */
+    function _collectJITFee(Currency currency, uint256 fee) internal virtual {
+        if (fee == 0) return;
+        currency.take(poolManager, address(this), fee, false);
+        _depositToYieldSource(currency, fee);
     }
 
     /**
@@ -310,7 +443,8 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
                 currentSqrtPriceX96,
                 TickMath.getSqrtPriceAtTick(getTickLower()),
                 TickMath.getSqrtPriceAtTick(getTickUpper()),
-                shares.toUint128()
+                shares.toUint128(),
+                rounding
             );
         } else {
             amount0 = _shareToAmount(shares, _poolKey.currency0, rounding);
@@ -328,9 +462,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
         virtual
         returns (uint256 amount)
     {
-        uint256 totalAmount = _getAmountInYieldSource(currency);
-        if (totalAmount == 0) return 0;
-        return shares.mulDiv(totalAmount, totalSupply(), rounding);
+        return shares.mulDiv(_getAmountInYieldSource(currency), totalSupply(), rounding);
     }
 
     /**
@@ -350,15 +482,25 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
      * NOTE: Since liquidity is provided and withdrawn transiently during flash accounting, it can be virtually
      * inflated for performing "leveraged liquidity" strategies, which would give better pricing to swappers at
      * the cost of the profitability of LP's and increased risks.
+     *
+     * NOTE: Returns 0 when the current price is outside the position's range. A single-sided JIT add there
+     * never gets traded against, since price would have to cross the entire range to reach it, so it only
+     * pays the add-then-remove rounding cost for zero benefit to swappers or liquidity providers.
      */
     function _getLiquidityToUse() internal view virtual returns (uint256) {
         (uint160 currentSqrtPriceX96,,,) = poolManager.getSlot0(_poolKey.toId());
+        uint160 sqrtPriceLowerX96 = TickMath.getSqrtPriceAtTick(getTickLower());
+        uint160 sqrtPriceUpperX96 = TickMath.getSqrtPriceAtTick(getTickUpper());
+
+        if (currentSqrtPriceX96 <= sqrtPriceLowerX96 || currentSqrtPriceX96 >= sqrtPriceUpperX96) return 0;
+
         return LiquidityAmounts.getLiquidityForAmounts(
             currentSqrtPriceX96,
-            TickMath.getSqrtPriceAtTick(getTickLower()),
-            TickMath.getSqrtPriceAtTick(getTickUpper()),
+            sqrtPriceLowerX96,
+            sqrtPriceUpperX96,
             _getAmountInYieldSource(_poolKey.currency0),
-            _getAmountInYieldSource(_poolKey.currency1)
+            _getAmountInYieldSource(_poolKey.currency1),
+            Math.Rounding.Floor
         );
     }
 
@@ -391,21 +533,6 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
      */
     function getTickUpper() public view virtual returns (int24) {
         return TickMath.maxUsableTick(_poolKey.tickSpacing);
-    }
-
-    /**
-     * @dev Modifies the hook's liquidity position in the pool.
-     *
-     * Positive liquidityDelta adds liquidity, while negative removes it.
-     */
-    function _modifyLiquidity(int256 liquidityDelta) internal virtual returns (BalanceDelta delta) {
-        (delta,) = poolManager.modifyLiquidity(
-            _poolKey,
-            ModifyLiquidityParams({
-                tickLower: getTickLower(), tickUpper: getTickUpper(), liquidityDelta: liquidityDelta, salt: bytes32(0)
-            }),
-            ""
-        );
     }
 
     /*
@@ -464,14 +591,15 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     function _getAmountInYieldSource(Currency currency) internal view virtual returns (uint256 amount);
 
     /**
-     * Set the hooks permissions, specifically `beforeInitialize`, `beforeSwap`, `afterSwap`.
+     * Set the hooks permissions, specifically `beforeInitialize`, `beforeAddLiquidity`, `beforeSwap`,
+     * `beforeSwapReturnDelta`, `afterSwap`.
      * @return permissions The permissions for the hook.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
         return Hooks.Permissions({
             beforeInitialize: true,
             afterInitialize: false,
-            beforeAddLiquidity: false,
+            beforeAddLiquidity: true,
             afterAddLiquidity: false,
             beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
@@ -479,7 +607,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
             afterSwap: true,
             beforeDonate: false,
             afterDonate: false,
-            beforeSwapReturnDelta: false,
+            beforeSwapReturnDelta: true,
             afterSwapReturnDelta: false,
             afterAddLiquidityReturnDelta: false,
             afterRemoveLiquidityReturnDelta: false

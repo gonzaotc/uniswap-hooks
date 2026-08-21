@@ -9,6 +9,7 @@ import {IERC6909Claims} from "@uniswap/v4-core/src/interfaces/external/IERC6909C
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {PoolSwapTest} from "@uniswap/v4-core/src/test/PoolSwapTest.sol";
+import {PoolModifyLiquidityTest} from "@uniswap/v4-core/src/test/PoolModifyLiquidityTest.sol";
 import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
@@ -26,6 +27,7 @@ abstract contract BaseHandler is Test {
 
     IPoolManager public manager;
     PoolSwapTest public swapRouter;
+    PoolModifyLiquidityTest public modifyLiquidityRouter;
     PoolKey public key;
     PoolId public poolId;
 

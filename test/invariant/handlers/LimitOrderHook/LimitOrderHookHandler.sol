@@ -86,7 +86,7 @@ contract LimitOrderHookHandler is BaseHandler {
 
     /// @dev Wraps every fuzzable action: snapshots state before it and asserts the transition
     /// invariants after it.
-    modifier stateTransition() {
+    modifier assertStateTransitions() {
         _preStateTransition();
         _;
         _postStateTransition();
@@ -144,7 +144,7 @@ contract LimitOrderHookHandler is BaseHandler {
         bool zeroForOne,
         uint256 liquiditySeed,
         uint256 orderIdSeed
-    ) external recordCall("placeOrder") stateTransition {
+    ) external recordCall("placeOrder") assertStateTransitions {
         uint256 multiOwnerRatio =
             ghost_orderIds.count() > 0 ? ghost_multipleOwnerCount * 100 / ghost_orderIds.count() : 0;
 
@@ -172,7 +172,7 @@ contract LimitOrderHookHandler is BaseHandler {
     }
 
     /// @dev Removes the actor's liquidity and collects their accrued fees.
-    function cancelOrder(uint256 actorSeed, uint256 idSeed) external recordCall("cancelOrder") stateTransition {
+    function cancelOrder(uint256 actorSeed, uint256 idSeed) external recordCall("cancelOrder") assertStateTransitions {
         uint232 id = _liveOrderFromSeed(idSeed);
         vm.assume(id != 0);
 
@@ -190,7 +190,7 @@ contract LimitOrderHookHandler is BaseHandler {
     }
 
     /// @dev Collects the actor's share of a filled order: principal plus accrued fees.
-    function withdraw(uint256 actorSeed, uint256 idSeed) external recordCall("withdraw") stateTransition {
+    function withdraw(uint256 actorSeed, uint256 idSeed) external recordCall("withdraw") assertStateTransitions {
         uint232 id = _filledOrderFromSeed(idSeed);
         vm.assume(id != 0);
 
@@ -206,7 +206,7 @@ contract LimitOrderHookHandler is BaseHandler {
     }
 
     /// @dev Moves the price toward a candidate tick, filling every order it crosses.
-    function swapTo(uint256 tickSeed, uint256 amountSeed) external recordCall("swapTo") stateTransition {
+    function swapTo(uint256 tickSeed, uint256 amountSeed) external recordCall("swapTo") assertStateTransitions {
         int24 target = _tickFromSeed(tickSeed);
         int24 current = _currentTick();
         vm.assume(target != current);
@@ -216,7 +216,11 @@ contract LimitOrderHookHandler is BaseHandler {
 
     /// @dev Price excursion into a tick range and back out, without crossing it: fees accrue and no
     /// order fills. One action because the fuzzer rarely composes it from two.
-    function swapRoundTrip(uint256 tickSeed, uint256 amountSeed) external recordCall("swapRoundTrip") stateTransition {
+    function swapRoundTrip(uint256 tickSeed, uint256 amountSeed)
+        external
+        recordCall("swapRoundTrip")
+        assertStateTransitions
+    {
         int24 tickLower = _tickFromSeed(tickSeed);
         int24 current = _currentTick();
 
