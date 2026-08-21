@@ -47,7 +47,7 @@ contract ReHypothecationHookNativeTest is HookTest, BalanceDeltaAssertions {
             payable(address(
                     uint160(
                         Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
-                            | Hooks.AFTER_SWAP_FLAG
+                            | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
                     )
                 ))
         );
@@ -108,7 +108,7 @@ contract ReHypothecationHookNativeTest is HookTest, BalanceDeltaAssertions {
         // Native currency (address(0)) should be supported in the native mock
         uint160 hookFlags = uint160(
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
-                | Hooks.AFTER_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
         ReHypothecationNativeMock newHook = ReHypothecationNativeMock(
             payable(address(hookFlags + 0x10000000000000000000000000000000)) // generate a different address
@@ -126,6 +126,9 @@ contract ReHypothecationHookNativeTest is HookTest, BalanceDeltaAssertions {
     // -- DIFFERENTIAL TESTING -- //
 
     function test_differential_add_swap_remove() public {
+        // Isolate the just-in-time position's behaviour from what a swap pays for its use.
+        hook.setJITFees(0, 0);
+
         uint256 shares = 1e18;
         int256 amountToSwap = -1e14; // exact input
 

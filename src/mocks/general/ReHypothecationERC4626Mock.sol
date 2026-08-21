@@ -103,6 +103,21 @@ contract ReHypothecationERC4626Mock is ReHypothecationHook {
 
     // ------------------ TESTING FUNCTIONS ------------------ //
 
+    /// @dev Overridable {getJITFees} for testing, defaulting to the base {JIT_ROUNDING_COST}.
+    uint256 private _jitFee0 = JIT_ROUNDING_COST;
+    uint256 private _jitFee1 = JIT_ROUNDING_COST;
+
+    /// @dev Set the fees a swap pays for the use of the JIT liquidity.
+    function setJITFees(uint256 fee0, uint256 fee1) public {
+        _jitFee0 = fee0;
+        _jitFee1 = fee1;
+    }
+
+    /// @inheritdoc ReHypothecationHook
+    function getJITFees() public view override returns (uint256, uint256) {
+        return (_jitFee0, _jitFee1);
+    }
+
     /// @dev Exposed internal function for testing
     function getAmountInYieldSource(Currency currency) public view returns (uint256) {
         return _getAmountInYieldSource(currency);

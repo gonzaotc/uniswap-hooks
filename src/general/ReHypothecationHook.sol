@@ -19,7 +19,11 @@ import {PoolKey} from "@uniswap/v4-core/src/types/PoolKey.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {BalanceDelta, toBalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {SwapParams, ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
-import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
+import {
+    BeforeSwapDelta,
+    BeforeSwapDeltaLibrary,
+    toBeforeSwapDelta
+} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 // Internal imports
 import {BaseHook} from "../base/BaseHook.sol";
@@ -80,6 +84,12 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     using Math for uint256;
     using SafeERC20 for IERC20;
 
+    /**
+     * @dev Units of each currency that one just-in-time provision costs the hook, since Uniswap v4 rounds against
+     * the position and floors the fee it credits. Default value of {getJITFees}.
+     */
+    uint256 public constant JIT_ROUNDING_COST = 4;
+
     /// @dev The pool key for the hook. Note that the hook supports only one pool key.
     PoolKey private _poolKey;
 
@@ -128,6 +138,10 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
      * @dev Initialize the hook's `poolKey` pool. The key stored by the hook is unique and
      * should not be modified so that it can safely be used across the hook's lifecycle.
      * Note that the hook supports only one pool key.
+     *
+     * Requirements:
+     *
+     * - the pool must not already be initialized.
      */
     function _beforeInitialize(address, PoolKey calldata key, uint160) internal virtual override returns (bytes4) {
         if (address(_poolKey.hooks) != address(0)) revert AlreadyInitialized();
@@ -207,16 +221,13 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     }
 
     /**
-     * @dev Rejects any liquidity addition. `Hooks.beforeModifyLiquidity` never calls this for the hook's own
-     * `modifyLiquidity` calls, so every call reaching this function is from a third party.
+     * @dev Rejects external liquidity additions. Use {addReHypothecatedLiquidity} instead.
      *
-     * A tick's `liquidityGross` is capped. Without this, a third party could saturate the hook's own
-     * boundary tick, making the JIT add in {_beforeSwap} revert with `TickLiquidityOverflow` and DoS the
-     * pool.
+     * External liquidity can deliberately saturate the hook's boundary ticks, making the JIT addition in
+     * {_beforeSwap} fail with `TickLiquidityOverflow` and leaving swaps without liquidity.
      *
-     * NOTE: Override this function to support normal liquidity additions. Doing so requires separately
-     * protecting the hook's own boundary ticks from saturation, since removing this check drops that
-     * guarantee.
+     * NOTE: Override to support normal liquidity additions, which requires protecting the hook's boundary ticks
+     * from saturation separately.
      */
     function _beforeAddLiquidity(
         address, /* sender */
@@ -236,7 +247,8 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
      * @dev Hook executed before a swap operation to provide liquidity from rehypothecated assets.
      *
      * Gets the amount of liquidity to be provided from yield sources and temporarily adds it to the pool,
-     * in a Just-in-Time provision of liquidity.
+     * in a Just-in-Time provision of liquidity. When the addition lands, charges the swap {getJITFees} for
+     * the liquidity it receives, which {_afterSwap} collects.
      *
      * Note that at this point there are no actual transfers of tokens happening to the pool, instead,
      * thanks to the Flash Accounting model, this addition creates a currencyDelta to the hook, which
@@ -245,7 +257,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
     function _beforeSwap(
         address, /* sender */
         PoolKey calldata, /* key */
-        SwapParams calldata, /* params */
+        SwapParams calldata params,
         bytes calldata /* hookData */
     )
         internal
@@ -254,36 +266,27 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
         returns (bytes4, BeforeSwapDelta, uint24)
     {
         uint256 liquidityToUse = _getLiquidityToUse();
-        if (liquidityToUse > 0) _tryAddLiquidity(liquidityToUse);
+        if (liquidityToUse > 0 && _tryAddLiquidity(liquidityToUse)) {
+            (uint256 fee0, uint256 fee1) = getJITFees();
+            (uint256 specified, uint256 unspecified) =
+                (params.amountSpecified < 0 == params.zeroForOne) ? (fee0, fee1) : (fee1, fee0);
+
+            return (
+                this.beforeSwap.selector,
+                toBeforeSwapDelta(specified.toInt256().toInt128(), unspecified.toInt256().toInt128()),
+                0
+            );
+        }
 
         return (this.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
     }
 
     /**
-     * @dev Attempts to add `liquidityToUse` to the hook's position. Tolerates failure: a liquidity saturated
-     *  boundary tick makes this a no-op instead of reverting the swap and DDoSing the pool.
-     */
-    function _tryAddLiquidity(uint256 liquidityToUse) internal virtual {
-        try poolManager.modifyLiquidity(
-            _poolKey,
-            ModifyLiquidityParams({
-                tickLower: getTickLower(),
-                tickUpper: getTickUpper(),
-                liquidityDelta: liquidityToUse.toInt256(),
-                salt: bytes32(0)
-            }),
-            ""
-        ) returns (
-            BalanceDelta, BalanceDelta
-        ) {}
-            catch {}
-    }
-
-    /**
      * @dev Hook executed after a swap operation to remove temporary liquidity and rebalance assets.
      *
-     * Removes the liquidity that was temporarily added in `_beforeSwap`, and resolves the hook's
-     * deltas in each currency in order to neutralize any pending debits or credits.
+     * Removes the liquidity that was temporarily added in `_beforeSwap`, resolves the hook's
+     * deltas in each currency in order to neutralize any pending debits or credits, and collects the
+     * {getJITFees} that `_beforeSwap` reported for the liquidity it provided.
      */
     function _afterSwap(
         address, /* sender */
@@ -305,9 +308,38 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
             // Take or settle any pending deltas with the PoolManager
             _resolveHookDelta(key.currency0);
             _resolveHookDelta(key.currency1);
+
+            // Collect the fees `_beforeSwap` charged the swap for the liquidity provided to it
+            (uint256 fee0, uint256 fee1) = getJITFees();
+            _collectJITFee(key.currency0, fee0);
+            _collectJITFee(key.currency1, fee1);
         }
 
         return (this.afterSwap.selector, 0);
+    }
+
+    /**
+     * @dev Attempts to add `liquidityToUse` to the hook's position, and returns whether it landed. Since JIT is
+     * attempted in every swap, failing the liquidity addition can DDoS the pool. {_beforeSwap} charges
+     * {getJITFees} only when it lands, so a swap is never charged for liquidity it did not receive.
+     */
+    function _tryAddLiquidity(uint256 liquidityToUse) internal virtual returns (bool added) {
+        try poolManager.modifyLiquidity(
+            _poolKey,
+            ModifyLiquidityParams({
+                tickLower: getTickLower(),
+                tickUpper: getTickUpper(),
+                liquidityDelta: liquidityToUse.toInt256(),
+                salt: bytes32(0)
+            }),
+            ""
+        ) returns (
+            BalanceDelta, BalanceDelta
+        ) {
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     /**
@@ -324,6 +356,37 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
             }),
             ""
         );
+    }
+
+    /**
+     * @dev Returns the fees in `currency0` and `currency1` that a swap pays for the just-in-time liquidity it
+     * receives. A swap that receives none pays nothing.
+     *
+     * Defaults to {JIT_ROUNDING_COST} of each, so that a swap too small to generate LP fees is not served at a
+     * loss. Override to charge for the liquidity itself.
+     *
+     * IMPORTANT: Must return the same amounts throughout a swap. {_beforeSwap} reports them and {_afterSwap}
+     * collects them, and a mismatch reverts with `CurrencyNotSettled`.
+     *
+     * NOTE: An exact input swap smaller than the fee on its specified currency reverts with
+     * `HookDeltaExceedsSwapAmount`.
+     */
+    function getJITFees() public view virtual returns (uint256 fee0, uint256 fee1) {
+        return (JIT_ROUNDING_COST, JIT_ROUNDING_COST);
+    }
+
+    /**
+     * @dev Takes `fee` of `currency` from the poolManager and deposits it into the yield source, where it
+     * accrues to the liquidity providers that funded the position.
+     *
+     * The `PoolManager` credits a hook's returned delta only once `afterSwap` has returned, so the fee that
+     * {_beforeSwap} reported is not part of `currencyDelta` here and {_resolveHookDelta} cannot settle it. This
+     * take leaves the debit that the later credit cancels, and moves the tokens the deposit needs.
+     */
+    function _collectJITFee(Currency currency, uint256 fee) internal virtual {
+        if (fee == 0) return;
+        currency.take(poolManager, address(this), fee, false);
+        _depositToYieldSource(currency, fee);
     }
 
     /**
@@ -399,9 +462,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
         virtual
         returns (uint256 amount)
     {
-        uint256 totalAmount = _getAmountInYieldSource(currency);
-        if (totalAmount == 0) return 0;
-        return shares.mulDiv(totalAmount, totalSupply(), rounding);
+        return shares.mulDiv(_getAmountInYieldSource(currency), totalSupply(), rounding);
     }
 
     /**
@@ -531,7 +592,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
 
     /**
      * Set the hooks permissions, specifically `beforeInitialize`, `beforeAddLiquidity`, `beforeSwap`,
-     * `afterSwap`.
+     * `beforeSwapReturnDelta`, `afterSwap`.
      * @return permissions The permissions for the hook.
      */
     function getHookPermissions() public pure virtual override returns (Hooks.Permissions memory permissions) {
@@ -546,7 +607,7 @@ abstract contract ReHypothecationHook is BaseHook, ERC20, ReentrancyGuardTransie
             afterSwap: true,
             beforeDonate: false,
             afterDonate: false,
-            beforeSwapReturnDelta: false,
+            beforeSwapReturnDelta: true,
             afterSwapReturnDelta: false,
             afterAddLiquidityReturnDelta: false,
             afterRemoveLiquidityReturnDelta: false

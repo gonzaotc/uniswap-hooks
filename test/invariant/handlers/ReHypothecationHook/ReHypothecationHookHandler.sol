@@ -31,8 +31,9 @@ contract ReHypothecationHookHandler is BaseHandler {
     uint256 internal constant MINT_SHARES_MIN_BOUND = 1;
     uint256 internal constant MINT_SHARES_MAX_BOUND = 1e6;
 
-    /// @dev Fuzzer bounds for a swap's input amount.
-    uint256 internal constant SWAP_AMOUNT_MIN_BOUND = 1;
+    /// @dev Fuzzer bounds for a swap's input amount. The lower bound stays above the hook's JIT fees, which
+    /// an exact input swap at or below that size cannot pay, so swaps reach the pool instead of reverting.
+    uint256 internal constant SWAP_AMOUNT_MIN_BOUND = 1e3;
     uint256 internal constant SWAP_AMOUNT_MAX_BOUND = 1e21;
 
     /// @dev 1-in-4 `addLiquidity` calls target one of the hook's own boundary ticks; the rest

@@ -53,7 +53,7 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
             payable(address(
                     uint160(
                         Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
-                            | Hooks.AFTER_SWAP_FLAG
+                            | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
                     )
                 ))
         );
@@ -141,7 +141,7 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
     function test_add_uninitialized_reverts() public {
         uint160 hookFlags = uint160(
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
-                | Hooks.AFTER_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
         ReHypothecationERC4626Mock newHook = ReHypothecationERC4626Mock(
             payable(address(hookFlags + 0x10000000000000000000000000000000)) // generate a different address
@@ -301,7 +301,7 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
     function test_remove_uninitialized_reverts() public {
         uint160 hookFlags = uint160(
             Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
-                | Hooks.AFTER_SWAP_FLAG
+                | Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG
         );
         ReHypothecationERC4626Mock newHook = ReHypothecationERC4626Mock(
             payable(address(hookFlags + 0x10000000000000000000000000000000)) // generate a different address
@@ -524,6 +524,10 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
     // -- differential -- //
 
     function testFuzz_differential_add_swap_remove_SingleLP(uint256 shares, int256 amountToSwap) public {
+        // Isolate the just-in-time position's behaviour from what a swap pays for its use, so the comparison
+        // against an unhooked pool is a comparison of the liquidity alone.
+        hook.setJITFees(0, 0);
+
         shares = uint256(bound(shares, 1e12, 1e28)); // add from 0.000001 to 10B shares
         amountToSwap = int256(bound(amountToSwap, 1e10, 1e26)); // swap from 0.00000001 to 100M tokens
         // assume the swap is less than half of the added liquidity
@@ -551,6 +555,52 @@ contract ReHypothecationHookERC4626Test is HookTest, BalanceDeltaAssertions {
         // Hooked
         BalanceDelta hookedRemoveDelta = hook.removeReHypothecatedLiquidity(shares);
         assertApproxEqAbs(hookedRemoveDelta, noHookRemoveDelta, 2, "hookedRemoveDelta !~= noHookRemoveDelta");
+    }
+
+    // -- JIT FEES -- //
+
+    function test_swap_paysJITFees() public {
+        hook.addReHypothecatedLiquidity(1e18);
+
+        uint256 snapshot = vm.snapshotState();
+
+        // Same swap, with the fees waived
+        hook.setJITFees(0, 0);
+        BalanceDelta freeDelta = swap(key, true, -1e15, ZERO_BYTES);
+        uint256 freeAmount0 = hook.getAmountInYieldSource(currency0);
+        uint256 freeAmount1 = hook.getAmountInYieldSource(currency1);
+
+        vm.revertToState(snapshot);
+
+        // Same swap, with the fees charged
+        (, uint256 fee1) = hook.getJITFees();
+        assertGt(fee1, 0, "the default fees are non-zero");
+        BalanceDelta paidDelta = swap(key, true, -1e15, ZERO_BYTES);
+
+        // The swapper receives less of the currency it buys, and the difference reaches the yield sources
+        assertLt(paidDelta.amount1(), freeDelta.amount1(), "swapper did not pay for the JIT liquidity");
+        assertGe(hook.getAmountInYieldSource(currency1) - freeAmount1, fee1, "the fee did not reach the yield source");
+        assertGe(hook.getAmountInYieldSource(currency0), freeAmount0, "currency0 went backwards");
+    }
+
+    function test_swap_withoutJITLiquidity_paysNoJITFees() public {
+        // No shares outstanding, so the hook provides no liquidity and charges nothing for it
+        assertEq(hook.totalSupply(), 0);
+
+        swap(key, true, -1e15, ZERO_BYTES);
+
+        assertEq(hook.getAmountInYieldSource(currency0), 0);
+        assertEq(hook.getAmountInYieldSource(currency1), 0);
+    }
+
+    function test_swap_belowJITFees_reverts() public {
+        hook.addReHypothecatedLiquidity(1e18);
+
+        (uint256 fee0,) = hook.getJITFees();
+
+        // An exact input swap smaller than the fee on the specified currency cannot pay it
+        vm.expectRevert(Hooks.HookDeltaExceedsSwapAmount.selector);
+        swap(key, true, -int256(fee0 - 1), ZERO_BYTES);
     }
 
     // -- decimals/rounding -- //
